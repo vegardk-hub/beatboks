@@ -3,7 +3,7 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v2';
+var VERSJON = 'v3';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 8;
 var EKSPORT_TAKTER = 8;
@@ -42,6 +42,7 @@ function tomTilstand() {
   return {
     v: 1,
     bpm: 92,
+    grunnbeat: 'boombap',
     hodetelefoner: false,
     av: av,            // id -> true for innebygde beats som står av
     stemmer: [],
@@ -70,6 +71,7 @@ function skriv() {
     if (p.kind === 'trommer' && !p.paa) S.av[p.id] = true;
   });
   S.bpm = Motor.bpm;
+  S.grunnbeat = Motor.grunnbeat.id;
   try { localStorage.setItem(NOKKEL, JSON.stringify(S)); } catch (e) {}
 }
 
@@ -125,6 +127,14 @@ function svgFor(p) {
   return Monstre.tegn(p.id + (p.kind === 'trommer' ? '' : ':' + p.hue), p.hue);
 }
 
+/* Taktlysene går gjennom hele neonskalaen appen ellers bruker: magenta på
+   ett-slaget, via fiolett og cyan, til limegrønt på slutten av takten. Da ser
+   barna hvor i takten de er på fargen alene, ikke bare på hvilken prikk som
+   lyser — og linjen blir en del av uttrykket i stedet for grå pynt. */
+function stegHue(i) {
+  return Math.round(320 - (i / (Motor.STEG - 1)) * 230);
+}
+
 function kortHtml(p) {
   var e = p.kind === 'stemme' ? Motor.effekt(p.effekt) : null;
   var r = p.kind === 'stemme' ? Motor.rytme(p.rytme) : null;
@@ -154,22 +164,34 @@ function tegnBrett() {
     '<button class="rund stor" data-h="sanger">💾</button>' +
     '</div>';
 
-  h += '<div class="seksjon"><h2>BEATS</h2><div class="rutenett">' +
+  /* Taktlinjen ligger rett under toppen, ikke nederst. Der er den i synsfeltet
+     samtidig som monstrene, og barna ser sammenhengen mellom lyset som løper
+     og lyden som kommer. Nederst måtte de flytte blikket for å finne takten. */
+  h += '<div class="steglys">';
+  for (var i = 0; i < Motor.STEG; i++) {
+    h += '<i class="' + (i % 4 === 0 ? 'slag' : '') + '" style="--h:' + stegHue(i) + '"></i>';
+  }
+  h += '</div>';
+
+  h += '<div class="seksjon"><div class="seksjonstopp"><h2>BEATS</h2>' +
+    '<div class="grunnbeats">' +
+    Motor.GRUNNBEATS.map(function (g) {
+      return '<button class="gb' + (Motor.grunnbeat.id === g.id ? ' valgt' : '') +
+        '" data-h="grunnbeat" data-id="' + g.id + '">' +
+        '<span>' + g.emoji + '</span>' + g.navn + '</button>';
+    }).join('') +
+    '</div></div><div class="rutenett">' +
     beats.map(kortHtml).join('') + '</div></div>';
 
-  h += '<div class="seksjon"><h2>DINE LYDER</h2><div class="rutenett">' +
-    stemmer.map(kortHtml).join('');
+  h += '<div class="seksjon"><div class="seksjonstopp"><h2>DINE LYDER</h2></div>' +
+    '<div class="rutenett">' + stemmer.map(kortHtml).join('');
   if (stemmer.length < MAKS_STEMMER) {
     h += '<div class="kort nytt" data-h="tilOpptak" role="button" tabindex="0">' +
       '<div class="mikro">🎤</div><div class="navn">TA OPP</div></div>';
   }
   h += '</div></div>';
 
-  h += '<div class="steglys">';
-  for (var i = 0; i < Motor.STEG; i++) {
-    h += '<i class="' + (i % 4 === 0 ? 'slag' : '') + '"></i>';
-  }
-  h += '</div><div class="versjon">' + VERSJON + '</div>';
+  h += '<div class="versjon">' + VERSJON + '</div>';
 
   E('app').innerHTML = h;
   finnElementer();
@@ -242,8 +264,11 @@ function tegnSanger() {
       'og trykk «Lagre denne».</p>';
   } else {
     h += '<div class="sangliste">' + S.sanger.map(function (sa) {
+      var gb = null;
+      Motor.GRUNNBEATS.forEach(function (g) { if (g.id === (sa.grunnbeat || 'boombap')) gb = g; });
       return '<div class="sang"><button class="sangnavn" data-h="hentSang" data-id="' + sa.id + '">' +
-        '<b>' + tekst(sa.navn) + '</b><span>' + sa.bpm + ' tempo · ' +
+        '<b>' + tekst(sa.navn) + '</b><span>' + (gb ? gb.emoji + ' ' + gb.navn + ' · ' : '') +
+        sa.bpm + ' tempo · ' +
         sa.oppsett.filter(function (x) { return x.paa; }).length + ' monstre</span></button>' +
         '<button class="slett" data-h="slettSang" data-id="' + sa.id + '">🗑</button></div>';
     }).join('') + '</div>';
@@ -340,6 +365,17 @@ function tempo(d) {
 function transport() {
   if (Motor.spiller) Motor.stopp(); else Motor.spill();
   tegnBrett();
+}
+
+function byttGrunnbeat(id) {
+  var g = Motor.settGrunnbeat(id);
+  /* Beatene barnet hadde skrudd av blir stående av. Det er med vilje: å bytte
+     stil skal ikke slå på alt de nettopp har skrudd bort. */
+  Motor.sikreKjeder();
+  if (!Motor.spiller) Motor.spill();
+  skriv();
+  tegnBrett();
+  toast(g.emoji + ' ' + g.navn);
 }
 
 /* --- opptak --- */
@@ -507,6 +543,7 @@ function lagreSang() {
     id: 's' + Date.now().toString(36),
     navn: 'SANG ' + (S.sanger.length + 1),
     bpm: Motor.bpm,
+    grunnbeat: Motor.grunnbeat.id,
     oppsett: Motor.plasser.map(function (p) {
       return { id: p.id, paa: p.paa, effekt: p.effekt, rytme: p.rytme };
     })
@@ -521,6 +558,8 @@ function hentSang(id) {
   var sang = null;
   S.sanger.forEach(function (s) { if (s.id === id) sang = s; });
   if (!sang) return;
+  // eldre sanger ble lagret før grunnbeatene fantes og skal da beholde boom bap
+  Motor.settGrunnbeat(sang.grunnbeat || 'boombap', false);
   Motor.settBpm(sang.bpm);
   /* En sang kan peke på en lyd som siden er slettet. Da hopper vi bare over
      den i stedet for å nekte å åpne sangen. */
@@ -598,6 +637,7 @@ var handlinger = {
     lastLyder().then(function () { Motor.sikreKjeder(); tegnBrett(); });
   },
   tempo: function (el) { tempo(parseInt(el.dataset.d, 10)); },
+  grunnbeat: function (el) { byttGrunnbeat(el.dataset.id); },
   transport: transport,
   sanger: function () { vis('sanger'); },
   tilBrett: function () {
@@ -762,6 +802,9 @@ Visuell.leggTil(function (dt, naaMs) {
 function oppstart() {
   S = les();
   byggBrett();
+  /* Grunnbeaten settes uten sitt eget tempo, slik at et tempo barnet har
+     stilt selv overlever at appen lukkes. */
+  Motor.settGrunnbeat(S.grunnbeat || 'boombap', false);
   Motor.settBpm(S.bpm || 92);
   Visuell.bakgrunn(E('bg'));
   vis('start');

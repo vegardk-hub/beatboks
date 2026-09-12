@@ -27,6 +27,13 @@ det de får i fila.
 
 **Alt tonalt ligger i A-moll pentaton.** Det er ikke pynt: det er grunnen til
 at en seksåring kan skru på alle monstrene samtidig uten at det låter surt.
+Det gjelder på tvers av alle grunnbeatene, så de kan bytte stil midt i en låt
+uten at deres egne lyder plutselig blir sure mot bassen.
+
+**Monsteret er instrumentet, grunnbeaten er arrangementet.** `BEATS` sier hva
+et monster ER (lydstemme, navn, farge), `GRUNNBEATS` sier hva det SPILLER.
+Derfor kan DUNDER gå fra boom bap til reggae uten å skifte utseende — barna
+kjenner igjen sin egen kick uansett hvilken låt de bygger.
 
 **Mikrofonens «hjelp» er skrudd av** (`echoCancellation`, `noiseSuppression`,
 `autoGainControl` = `false`). Støyfjerning spiser nettopp tsss- og pff-lydene
@@ -50,9 +57,26 @@ ikke blir en strek tvers over ansiktet.
 
 ## Endre noe
 
-Legg til et beat-monster i `BEATS` i `audio.js`. Mønsteret er 16 tegn, der
-`x` er hardt slag, `o` mykt og `.` stille. En ny effekt legges i `EFFEKTER`
-samme sted; den trenger enten en `rate` (avspillingsfart), en `bygg`-funksjon
+En ny grunnbeat legges i `GRUNNBEATS` i `audio.js`. Den trenger `bpm` og et
+`spor` for hvert monster-id. Rytmesporene er 16 tegn, der `x` er hardt slag,
+`o` mykt og `.` stille (`rare` bruker i tillegg `r` for kant og `k` for
+bjelle). De tonale sporene — `bass` og `blipp` — skrives som 16 notenavn
+adskilt med mellomrom, der `.` er pause.
+
+Pass på at ikke kick, klapp og skarptromme lander på nøyaktig samme steg. De
+summerer seg da til klipping, og det høres. Slik måler du:
+
+```js
+Motor.plasser.forEach(p => p.paa = p.kind === 'trommer');
+Motor.settGrunnbeat('din-nye-beat');
+const b = await Motor.ctx.decodeAudioData(await (await Motor.eksporter(2)).arrayBuffer());
+const d = b.getChannelData(0);
+console.log('topp', Math.max(...d).toFixed(3));   // skal ligge under 0,95
+```
+
+Et nytt beat-monster legges i `BEATS` samme sted — husk da å gi det et spor i
+alle fem grunnbeatene, ellers er det stumt i de andre. En ny effekt legges i
+`EFFEKTER`; den trenger enten en `rate` (avspillingsfart), en `bygg`-funksjon
 som returnerer `{ inn, ut }`, eller begge.
 
 En ny kroppsform legges i `FORMER` i `monsters.js`. Den må returnere `deler`

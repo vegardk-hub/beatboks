@@ -192,28 +192,123 @@ var Motor = (function () {
 
   /* Mønsteret leses som 16 tegn: x = hardt slag, o = mykt, . = stille.
      Andre bokstaver er egne varianter som stemmen selv tolker. */
+  /* Monsteret er instrumentet — hva det ER. Hva det SPILLER kommer fra
+     grunnbeaten under. Skillet er hele grunnen til at samme monster kan gå fra
+     boom bap til reggae uten å skifte utseende eller navn: barna kjenner igjen
+     DUNDER som sin kick, uansett hvilken låt de bygger. */
   var BEATS = [
-    { id: 'dunder', navn: 'DUNDER', emoji: '💥', hue: 348,
-      pat: 'x.....x...x.....', slag: kick },
-    { id: 'klapp', navn: 'KLAPP', emoji: '👏', hue: 32,
-      pat: '....x.......x..o', slag: klapp },
-    { id: 'tikk', navn: 'TIKK', emoji: '🎩', hue: 188,
-      pat: 'x.o.x.o.x.oox.o.', slag: hatt },
-    { id: 'skarp', navn: 'SMELL', emoji: '🥁', hue: 12,
-      pat: '....x..o....x...', slag: skarp },
-    { id: 'riste', navn: 'RISTE', emoji: '✨', hue: 74,
-      pat: '.o.x.o.x.o.x.oxx', slag: riste },
+    { id: 'dunder', navn: 'DUNDER', emoji: '💥', hue: 348, slag: kick },
+    { id: 'klapp', navn: 'KLAPP', emoji: '👏', hue: 32, slag: klapp },
+    { id: 'tikk', navn: 'TIKK', emoji: '🎩', hue: 188, slag: hatt },
+    { id: 'skarp', navn: 'SMELL', emoji: '🥁', hue: 12, slag: skarp },
+    { id: 'riste', navn: 'RISTE', emoji: '✨', hue: 74, slag: riste },
     { id: 'rare', navn: 'RARE', emoji: '🛸', hue: 292,
-      pat: '..x....r...x.r..',
       slag: function (c, t, ut, v, tegn) {
         if (tegn === 'r') kant(c, t, ut, v); else bjelle(c, t, ut, v);
       } },
-    { id: 'bass', navn: 'BASS', emoji: '🟣', hue: 262,
-      noter: toner('A1 . . . . . C2 . . . A1 . . . E2 .'), slag: bass },
-    { id: 'blipp', navn: 'BLIPP', emoji: '💫', hue: 158,
-      noter: toner('A4 . . C5 . . E5 . D5 . . C5 . . A4 .'), slag: blipp },
+    { id: 'bass', navn: 'BASS', emoji: '🟣', hue: 262, slag: bass, tonal: true },
+    { id: 'blipp', navn: 'BLIPP', emoji: '💫', hue: 158, slag: blipp, tonal: true },
     { id: 'kosmisk', navn: 'KOSMISK', emoji: '🌌', hue: 212, teppe: true }
   ];
+
+  /* ---------- grunnbeatene ---------- */
+
+  /* Hver grunnbeat er et helt arrangement: alle monstrene får nytt mønster på
+     én gang, og tempoet følger med. Det er derfor de føles som ulike låter og
+     ikke bare som «samme beat, litt annerledes».
+
+     Tonene holder seg i A-moll pentaton på tvers av alle fem, så barna kan
+     bytte grunnbeat midt i en låt uten at deres egne lyder plutselig blir sure
+     mot bassen. */
+  var GRUNNBEATS = [
+    {
+      id: 'boombap', navn: 'BOOM BAP', emoji: '🥊', bpm: 92,
+      spor: {
+        dunder: 'x.....x...x.....',
+        klapp: '....x.......x..o',
+        tikk: 'x.o.x.o.x.oox.o.',
+        skarp: '....x..o....x...',
+        riste: '.o.x.o.x.o.x.oxx',
+        rare: '..x....r...x.r..',
+        bass: 'A1 . . . . . C2 . . . A1 . . . E2 .',
+        blipp: 'A4 . . C5 . . E5 . D5 . . C5 . . A4 .'
+      }
+    },
+    {
+      id: 'disko', navn: 'DISKO', emoji: '🪩', bpm: 118,
+      spor: {
+        dunder: 'x...x...x...x...',          // stampende på hvert slag
+        klapp: '....x.......x...',
+        tikk: '..x...x...x...x.',            // åpne hatter mellom slagene
+        skarp: '............x..o',
+        riste: 'oxoxoxoxoxoxoxox',
+        rare: '....k.......k..r',
+        bass: 'A1 . A2 . A1 . A2 . A1 . A2 . G2 . E2 .',   // oktavsprang
+        blipp: 'E5 . D5 . C5 . A4 . E5 . D5 . C5 . D5 .'
+      }
+    },
+    {
+      id: 'trap', navn: 'TRAP', emoji: '🧊', bpm: 76,
+      spor: {
+        dunder: 'x.....x..x...x..',
+        klapp: '........x.......',
+        tikk: 'xoxoxoxxxoxoxxox',          // rullende hatter er hele signaturen
+        skarp: '........x.......',
+        riste: '..o...o...o...oo',
+        rare: '...r...........k',
+        bass: 'A1 . . . . . . . C2 . . . . . E2 .',
+        blipp: 'A4 . . . E5 . . . . . C5 . . . . .'
+      }
+    },
+    {
+      id: 'rock', navn: 'ROCK', emoji: '🎸', bpm: 128,
+      spor: {
+        dunder: 'x.......x..x....',
+        klapp: '............x...',
+        tikk: 'x.x.x.x.x.x.x.x.',           // rette åttendedeler
+        skarp: '....x.......x...',
+        riste: 'o.o.o.o.o.o.o.oo',
+        rare: '..............r.',
+        bass: 'A1 . A1 . A1 . A1 . G2 . G2 . E2 . E2 .',
+        blipp: 'A4 . . . G4 . . . E4 . . . D4 . . .'
+      }
+    },
+    {
+      id: 'reggae', navn: 'REGGAE', emoji: '🌴', bpm: 76,
+      spor: {
+        dunder: '........x.......',          // ett drypp, midt i takten
+        /* Klappet ligger med vilje IKKE på ettdryppet. Kick og skarptromme
+           treffer allerede sammen der, og et tredje slag oppå summerte seg til
+           klipping — i tillegg til at det ikke tilfører noe musikalsk. */
+        klapp: '....o.......o...',
+        tikk: '..x...x...x...x.',            // skank på opptakten
+        skarp: '........x......o',
+        riste: '....o.......o..o',
+        rare: '..r.....k...r...',
+        bass: 'A1 . . C2 . . E2 . . . A1 . . . . .',
+        blipp: '. . E5 . . . C5 . . . A4 . . . . .'
+      }
+    }
+  ];
+
+  /* De tonale sporene skrives som tekst for at de skal være lesbare ved siden
+     av rytmesporene, og gjøres om til noteliste én gang her. */
+  (function klargjorGrunnbeats() {
+    var tonale = {};
+    BEATS.forEach(function (b) { if (b.tonal) tonale[b.id] = true; });
+    GRUNNBEATS.forEach(function (g) {
+      Object.keys(g.spor).forEach(function (id) {
+        if (tonale[id] && typeof g.spor[id] === 'string') g.spor[id] = toner(g.spor[id]);
+      });
+    });
+  })();
+
+  var grunnbeat = GRUNNBEATS[0];
+
+  function finnGrunnbeat(id) {
+    for (var i = 0; i < GRUNNBEATS.length; i++) if (GRUNNBEATS[i].id === id) return GRUNNBEATS[i];
+    return GRUNNBEATS[0];
+  }
 
   /* ---------- effekter ---------- */
 
@@ -445,14 +540,16 @@ var Motor = (function () {
         if (steg === 0 && takt % 2 === 0) teppe(c, t, plass.rigg.hode, 1, stegLengde * 32);
         return;
       }
-      if (d.noter) {
-        var nm = d.noter[steg];
+      var spor = grunnbeat.spor[d.id];
+      if (!spor) return;
+      if (d.tonal) {
+        var nm = spor[steg];
         if (!nm) return;
         d.slag(c, t, plass.rigg.hode, 1, N[nm], stegLengde * 2);
         plass.sistSpilt = t;
         return;
       }
-      var tegn = d.pat.charAt(steg);
+      var tegn = spor.charAt(steg);
       if (tegn === '.') return;
       d.slag(c, t, plass.rigg.hode, tegn === 'o' ? 0.55 : (tegn === 'x' ? 1 : 0.85), tegn);
       plass.sistSpilt = t;
@@ -502,8 +599,12 @@ var Motor = (function () {
     var m = c.createGain();
     m.gain.value = 0.9;
     var lim = c.createDynamicsCompressor();
-    lim.threshold.value = -9; lim.knee.value = 8; lim.ratio.value = 9;
-    lim.attack.value = 0.003; lim.release.value = 0.2;
+    /* Rask angrepstid og høyt forhold, altså en begrenser og ikke en
+       kompressor. Med 3 ms angrep slapp transientene fra flere trommer på
+       samme steg gjennom før den rakk å ta tak, og toppen traff 1,0 — som er
+       hørbar klipping i eksportfila. */
+    lim.threshold.value = -7; lim.knee.value = 4; lim.ratio.value = 20;
+    lim.attack.value = 0.001; lim.release.value = 0.18;
     var an = c.createAnalyser();
     an.fftSize = 512; an.smoothingTimeConstant = 0.72;
     m.connect(lim); lim.connect(an); an.connect(c.destination);
@@ -580,6 +681,16 @@ var Motor = (function () {
     });
   }
 
+  /* Bytte av grunnbeat trer i kraft ved neste steg som planlegges — ingenting
+     må stoppes eller bygges om. Tempoet følger som regel med, siden en
+     diskobeat på 92 slag låter søvnig og en trap-beat på 128 låter stresset;
+     den som allerede har stilt tempoet selv kan be om å få beholde det. */
+  function settGrunnbeat(id, ogsaaTempo) {
+    grunnbeat = finnGrunnbeat(id);
+    if (ogsaaTempo !== false) settBpm(grunnbeat.bpm);
+    return grunnbeat;
+  }
+
   function plassEndret(p) {
     if (!ctx) return;
     if (p.rigg) rivKjede(p.rigg);
@@ -594,9 +705,14 @@ var Motor = (function () {
     var t = ctx.currentTime + 0.02, sl = 60 / bpm / 4;
     if (p.kind === 'trommer') {
       var d = p.def;
+      var spor = grunnbeat.spor[d.id];
       if (d.teppe) teppe(ctx, t, p.rigg.hode, 1, sl * 8);
-      else if (d.noter) d.slag(ctx, t, p.rigg.hode, 1, N[d.noter[0] || 'A2'], sl * 2);
-      else d.slag(ctx, t, p.rigg.hode, 1, 'x');
+      else if (d.tonal) {
+        // første tone i sporet, så smaksprøven stemmer med det man faktisk får
+        var forste = 'A2';
+        for (var i = 0; spor && i < spor.length; i++) if (spor[i]) { forste = spor[i]; break; }
+        d.slag(ctx, t, p.rigg.hode, 1, N[forste], sl * 2);
+      } else d.slag(ctx, t, p.rigg.hode, 1, 'x');
     } else if (p.buffer) {
       spillStemme(ctx, p, t, effekt(p.effekt), 0, sl);
     }
@@ -670,14 +786,17 @@ var Motor = (function () {
 
   return {
     BEATS: BEATS, EFFEKTER: EFFEKTER, RYTMER: RYTMER, STEG: STEG,
+    GRUNNBEATS: GRUNNBEATS,
     effekt: effekt, rytme: rytme, wav: wav, lydsesjon: lydsesjon,
     start: start, spill: spill, stopp: stopp, demp: demp,
-    settBpm: settBpm, plassEndret: plassEndret, smak: smak, prov: prov,
+    settBpm: settBpm, settGrunnbeat: settGrunnbeat, plassEndret: plassEndret,
+    smak: smak, prov: prov,
     eksporter: eksporter, sikreKjeder: sikreKjeder,
     get ctx() { return ctx; },
     get rigg() { return rigg; },
     get spiller() { return spiller; },
     get bpm() { return bpm; },
+    get grunnbeat() { return grunnbeat; },
     get stegKo() { return stegKo; },
     get plasser() { return plasser; },
     set plasser(v) { plasser = v; }
