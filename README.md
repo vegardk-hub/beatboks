@@ -48,6 +48,14 @@ Har de hodetelefoner, kan de skru på «behold beatet» på opptaksskjermen.
 om loopen lander på slaget — et opptak med et halvt sekund nøling foran kommer
 alltid for sent, uansett hvor godt barnet traff.
 
+**En lagret sang er en tilstand, ikke et lydopptak.** Den husker hvilke monstre
+som sto på, hvilken grunnbeat og hvilket tempo, og hvilken effekt og rytme hver
+stemme hadde. Å spille den av setter brettet tilbake til akkurat det — og da
+oppfører figurene seg av seg selv slik de skal, fordi animasjonen leser
+lydnivået fra hvert monsters egen analysenode. Sangene ligger nederst på
+brettet og ikke bak en knapp: et barn som må huske at det finnes en skjerm et
+sted, spiller ikke av sangen sin igjen.
+
 **Egen beat: tempoet gjettes ikke.** Barna beatboxer i fire takter mens
 steglysene løper som metronom, så appen vet allerede hvor raskt det går og
 trenger bare finne ut hvor i takten de begynte. Det er både mer treffsikkert

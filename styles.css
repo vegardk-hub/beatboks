@@ -646,28 +646,73 @@ body {
 }
 .tomt { color: var(--ink-svak); text-align: center; font-weight: 600; line-height: 1.5; }
 
-.sangliste { display: flex; flex-direction: column; gap: 10px; }
-.sang { display: flex; gap: 8px; }
-.sangnavn {
+/* ---------- sangene, nederst på brettet ---------- */
+
+.sangrad {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.sangkort {
+  position: relative;
+  border: 2px solid rgba(164, 92, 255, 0.45);
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(164, 92, 255, 0.18), transparent 70%),
+    rgba(12, 6, 26, 0.7);
+  border-radius: var(--r);
+  padding: 10px 12px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.sangkort:active { transform: scale(0.97); }
+
+.sangtopp { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.sanggb { font-size: 19px; }
+.sangspill {
   flex: 1;
-  text-align: left;
-  background: rgba(255, 255, 255, 0.06);
-  border: 2px solid rgba(164, 92, 255, 0.4);
-  border-radius: var(--r);
-  padding: 14px 16px;
+  color: var(--lime);
+  font-size: 15px;
+  text-shadow: 0 0 10px var(--lime);
+}
+.sangslett {
+  border: none;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink-svak);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  font-family: inherit;
+}
+.sangslett:active { transform: scale(0.88); }
+
+.sangkort .sangnavn {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 2px;
   color: var(--ink);
-  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.sangnavn b { display: block; font-size: 17px; letter-spacing: 2px; }
-.sangnavn span { font-size: 12px; color: var(--ink-svak); font-weight: 600; }
-.slett {
-  width: 52px;
-  border-radius: var(--r);
-  border: 2px solid rgba(255, 60, 106, 0.4);
-  background: rgba(255, 60, 106, 0.1);
-  font-size: 18px;
-  cursor: pointer;
+.sanginfo { font-size: 11px; color: var(--ink-svak); font-weight: 600; letter-spacing: 1px; }
+
+/* Sangen som går nå lyser grønt, som avspillingsknappen — samme farge betyr
+   samme ting gjennom hele appen. */
+.sangkort.aktiv {
+  border-color: var(--lime);
+  box-shadow: 0 0 18px rgba(196, 255, 62, 0.45);
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(196, 255, 62, 0.2), transparent 70%),
+    rgba(12, 6, 26, 0.7);
 }
+
+.gb.lagre { border-color: rgba(196, 255, 62, 0.5); color: var(--lime); }
+.seksjon.sanger .tomt { font-size: 14px; text-align: left; margin: 4px 2px; }
 
 /* ---------- arket ---------- */
 

@@ -1,4 +1,4 @@
-const CACHE = 'beatboks-v4';
+const CACHE = 'beatboks-v5';
 const FILES = ['./', './index.html', './styles.css', './audio.js', './monsters.js',
   './record.js', './analyse.js', './visual.js', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png'];

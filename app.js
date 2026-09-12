@@ -3,7 +3,7 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v4';
+var VERSJON = 'v5';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 8;
 var EKSPORT_TAKTER = 8;
@@ -13,8 +13,18 @@ var EGEN_TAKTER = 4;      // fire takter blir ca. ti sekunder i vanlig tempo
 var S = null;
 var ui = {
   skjerm: 'start', opptak: 'klar', nyLyd: null, nyId: null, stellId: null, ark: null,
-  beatModus: false, beatSvar: null
+  beatModus: false, beatSvar: null, aktivSang: null
 };
+
+/* Merket «denne sangen spiller nå» skal være ærlig. Så fort barnet skrur på et
+   monster eller vrir på tempoet, er det ikke lenger den lagrede sangen som
+   går, og da skal merket vekk. */
+function brettEndret() {
+  if (ui.aktivSang === null) return;
+  ui.aktivSang = null;
+  var el = document.querySelector('.sangkort.aktiv');
+  if (el) el.classList.remove('aktiv');
+}
 
 /* ---------- små hjelpere ---------- */
 
@@ -166,7 +176,6 @@ function tegnBrett() {
     '</div>' +
     '<button class="spill' + (Motor.spiller ? ' gaar' : '') + '" data-h="transport">' +
     (Motor.spiller ? '◼' : '▶') + '</button>' +
-    '<button class="rund stor" data-h="sanger">💾</button>' +
     '</div>';
 
   /* Taktlinjen ligger rett under toppen, ikke nederst. Der er den i synsfeltet
@@ -198,10 +207,45 @@ function tegnBrett() {
   }
   h += '</div></div>';
 
+  h += sangSeksjon();
   h += '<div class="versjon">' + VERSJON + '</div>';
 
   E('app').innerHTML = h;
   finnElementer();
+}
+
+/* Sangene ligger nederst på brettet, ikke bak en knapp. Et barn som må huske
+   at det finnes en skjerm et sted, spiller ikke av sangen sin igjen — et barn
+   som ser den, gjør det. */
+function sangSeksjon() {
+  var h = '<div class="seksjon sanger"><div class="seksjonstopp"><h2>SANGENE DINE</h2>' +
+    '<div class="grunnbeats">' +
+    '<button class="gb lagre" data-h="lagreSang"><span>💾</span>LAGRE DENNE</button>' +
+    (S.sanger.length
+      ? '<button class="gb" data-h="lagFil"><span>🎵</span>LAG LYDFIL</button>'
+      : '') +
+    '</div></div>';
+
+  if (!S.sanger.length) {
+    return h + '<p class="tomt">Skru på monstrene du liker, og trykk ' +
+      '«Lagre denne». Da kan du spille sangen igjen når du vil.</p></div>';
+  }
+
+  h += '<div class="sangrad">' + S.sanger.map(function (sa) {
+    var gb = null;
+    Motor.GRUNNBEATS.forEach(function (g) { if (g.id === (sa.grunnbeat || 'boombap')) gb = g; });
+    var antall = sa.oppsett.filter(function (x) { return x.paa; }).length;
+    return '<div class="sangkort' + (ui.aktivSang === sa.id ? ' aktiv' : '') +
+      '" data-h="hentSang" data-id="' + sa.id + '" role="button" tabindex="0">' +
+      '<div class="sangtopp"><span class="sanggb">' + (gb ? gb.emoji : '🥊') + '</span>' +
+      '<span class="sangspill">▶</span>' +
+      '<button class="sangslett" data-h="slettSang" data-id="' + sa.id + '">✕</button></div>' +
+      '<div class="sangnavn">' + tekst(sa.navn) + '</div>' +
+      '<div class="sanginfo">' + antall + ' monstre · ' + sa.bpm + '</div>' +
+      '</div>';
+  }).join('') + '</div>';
+
+  return h + '</div>';
 }
 
 /* ---------- opptaksskjermen ---------- */
@@ -314,31 +358,6 @@ function beatSvarHtml() {
 
 /* ---------- sanger og eksport ---------- */
 
-function tegnSanger() {
-  var h = '<div class="side"><button class="tilbake" data-h="tilBrett">✕</button>' +
-    '<h1>SANGENE DINE</h1>' +
-    '<div class="knapperad bred">' +
-    '<button class="hoved" data-h="lagreSang">💾 LAGRE DENNE</button>' +
-    '<button class="sekundaer" data-h="lagFil">🎵 LAG LYDFIL</button>' +
-    '</div>';
-  if (!S.sanger.length) {
-    h += '<p class="tomt">Ingen lagrede sanger ennå. Skru på monstrene du liker, ' +
-      'og trykk «Lagre denne».</p>';
-  } else {
-    h += '<div class="sangliste">' + S.sanger.map(function (sa) {
-      var gb = null;
-      Motor.GRUNNBEATS.forEach(function (g) { if (g.id === (sa.grunnbeat || 'boombap')) gb = g; });
-      return '<div class="sang"><button class="sangnavn" data-h="hentSang" data-id="' + sa.id + '">' +
-        '<b>' + tekst(sa.navn) + '</b><span>' + (gb ? gb.emoji + ' ' + gb.navn + ' · ' : '') +
-        sa.bpm + ' tempo · ' +
-        sa.oppsett.filter(function (x) { return x.paa; }).length + ' monstre</span></button>' +
-        '<button class="slett" data-h="slettSang" data-id="' + sa.id + '">🗑</button></div>';
-    }).join('') + '</div>';
-  }
-  h += '</div>';
-  E('app').innerHTML = h;
-}
-
 /* ---------- arket for én stemme ---------- */
 
 function tegnArk() {
@@ -380,7 +399,6 @@ function vis(skjerm) {
   ui.skjerm = skjerm;
   if (skjerm === 'brett') tegnBrett();
   else if (skjerm === 'opptak') tegnOpptak();
-  else if (skjerm === 'sanger') tegnSanger();
   else tegnStart();
 }
 
@@ -397,6 +415,7 @@ function tegnStart() {
 function veksle(id, stille) {
   var p = finnPlass(id);
   if (!p) return;
+  brettEndret();
   if (p.kind === 'stemme' && !p.buffer) { toast('Lyden er ikke lastet ennå'); return; }
   p.paa = !p.paa;
   Motor.sikreKjeder();
@@ -418,6 +437,7 @@ function veksle(id, stille) {
 }
 
 function tempo(d) {
+  brettEndret();
   Motor.settBpm(Motor.bpm + d);
   var t = document.querySelector('.tempo .tall b');
   if (t) t.textContent = Motor.bpm;
@@ -430,6 +450,7 @@ function transport() {
 }
 
 function byttGrunnbeat(id) {
+  brettEndret();
   var g = Motor.settGrunnbeat(id);
   /* Beatene barnet hadde skrudd av blir stående av. Det er med vilje: å bytte
      stil skal ikke slå på alt de nettopp har skrudd bort. */
@@ -607,6 +628,7 @@ function lagreLyd() {
 function settEffekt(id) {
   var p = finnPlass(ui.stellId);
   if (!p) return;
+  brettEndret();
   p.effekt = id;
   Motor.plassEndret(p);
   Motor.smak(p);
@@ -617,6 +639,7 @@ function settEffekt(id) {
 function settRytme(id) {
   var p = finnPlass(ui.stellId);
   if (!p) return;
+  brettEndret();
   p.rytme = id;
   tegnArk();
   skriv();
@@ -651,8 +674,9 @@ function lagreSang() {
     })
   };
   S.sanger.unshift(sang);
+  ui.aktivSang = sang.id;
   skriv();
-  tegnSanger();
+  tegnBrett();
   toast(sang.navn + ' er lagret');
 }
 
@@ -674,15 +698,16 @@ function hentSang(id) {
   });
   Motor.sikreKjeder();
   if (!Motor.spiller) Motor.spill();
+  ui.aktivSang = sang.id;
   skriv();
   vis('brett');
-  toast(sang.navn);
+  toast('▶ ' + sang.navn);
 }
 
 function slettSang(id) {
   S.sanger = S.sanger.filter(function (s) { return s.id !== id; });
   skriv();
-  tegnSanger();
+  tegnBrett();
 }
 
 function lagFil() {
@@ -741,7 +766,6 @@ var handlinger = {
   tempo: function (el) { tempo(parseInt(el.dataset.d, 10)); },
   grunnbeat: function (el) { byttGrunnbeat(el.dataset.id); },
   transport: transport,
-  sanger: function () { vis('sanger'); },
   tilBrett: function () {
     avbrytOpptak();
     ui.nyLyd = null;
