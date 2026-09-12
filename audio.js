@@ -310,6 +310,32 @@ var Motor = (function () {
     return GRUNNBEATS[0];
   }
 
+  /* Barnas egen beat kommer inn samme vei som de innebygde og oppfører seg
+     likt etterpå. De tonale sporene kan komme ferdig oppdelt fra analysen,
+     så normaliseringen tåler begge former. */
+  function leggTilGrunnbeat(def) {
+    var tonale = {};
+    BEATS.forEach(function (b) { if (b.tonal) tonale[b.id] = true; });
+    var spor = {};
+    Object.keys(def.spor).forEach(function (id) {
+      var s = def.spor[id];
+      spor[id] = (tonale[id] && typeof s === 'string') ? toner(s) : s;
+    });
+    var ny = {
+      id: def.id, navn: def.navn, emoji: def.emoji,
+      bpm: def.bpm || bpm, egen: true, spor: spor
+    };
+    for (var i = 0; i < GRUNNBEATS.length; i++) {
+      if (GRUNNBEATS[i].id === ny.id) {
+        GRUNNBEATS[i] = ny;
+        if (grunnbeat.id === ny.id) grunnbeat = ny;
+        return ny;
+      }
+    }
+    GRUNNBEATS.push(ny);
+    return ny;
+  }
+
   /* ---------- effekter ---------- */
 
   /* Kurvene har et ODDE antall punkter, og x regnes ut mot n-1.
@@ -789,7 +815,8 @@ var Motor = (function () {
     GRUNNBEATS: GRUNNBEATS,
     effekt: effekt, rytme: rytme, wav: wav, lydsesjon: lydsesjon,
     start: start, spill: spill, stopp: stopp, demp: demp,
-    settBpm: settBpm, settGrunnbeat: settGrunnbeat, plassEndret: plassEndret,
+    settBpm: settBpm, settGrunnbeat: settGrunnbeat, leggTilGrunnbeat: leggTilGrunnbeat,
+    plassEndret: plassEndret,
     smak: smak, prov: prov,
     eksporter: eksporter, sikreKjeder: sikreKjeder,
     get ctx() { return ctx; },

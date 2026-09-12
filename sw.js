@@ -1,6 +1,6 @@
-const CACHE = 'beatboks-v3';
+const CACHE = 'beatboks-v4';
 const FILES = ['./', './index.html', './styles.css', './audio.js', './monsters.js',
-  './record.js', './visual.js', './app.js', './manifest.webmanifest',
+  './record.js', './analyse.js', './visual.js', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {

@@ -3,13 +3,18 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v3';
+var VERSJON = 'v4';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 8;
 var EKSPORT_TAKTER = 8;
+var EGEN_ID = 'minbeat';
+var EGEN_TAKTER = 4;      // fire takter blir ca. ti sekunder i vanlig tempo
 
 var S = null;
-var ui = { skjerm: 'start', opptak: 'klar', nyLyd: null, nyId: null, stellId: null, ark: null };
+var ui = {
+  skjerm: 'start', opptak: 'klar', nyLyd: null, nyId: null, stellId: null, ark: null,
+  beatModus: false, beatSvar: null
+};
 
 /* ---------- små hjelpere ---------- */
 
@@ -180,6 +185,8 @@ function tegnBrett() {
         '" data-h="grunnbeat" data-id="' + g.id + '">' +
         '<span>' + g.emoji + '</span>' + g.navn + '</button>';
     }).join('') +
+    '<button class="gb lag" data-h="lagEgenBeat">' +
+    '<span>🎙️</span>' + (S.egenBeat ? 'LAG NY' : 'LAG DIN EGEN') + '</button>' +
     '</div></div><div class="rutenett">' +
     beats.map(kortHtml).join('') + '</div></div>';
 
@@ -210,21 +217,41 @@ function tegnOpptak() {
       'og prøv igjen.</p>' +
       '<button class="hoved" data-h="prov">PRØV IGJEN</button></div>';
   } else if (ui.opptak === 'klar') {
-    h += '<div class="beskjed">' +
-      '<h1>LAG EN LYD</h1>' +
-      '<p>Si <b>BDUM</b>, <b>TSS</b> eller <b>PA-TSJ</b> rett inn i nettbrettet.</p>' +
-      '<button class="rekord" data-h="startOpptak"><span>🎤</span>TRYKK OG LAG LYD</button>' +
-      '<label class="bryter"><input type="checkbox" data-h="hodetelefoner"' +
-      (S.hodetelefoner ? ' checked' : '') + '><span>🎧 Jeg har hodetelefoner — behold beatet</span></label>' +
-      '</div>';
+    h += ui.beatModus
+      ? '<div class="beskjed">' +
+        '<h1>LAG DIN EGEN BEAT</h1>' +
+        '<p>Beatboks i <b>fire runder</b> mens lysene løper. Bruk <b>BDUM</b> for ' +
+        'dype slag, <b>TSS</b> for lyse og <b>PA</b> for smell — så finner appen ' +
+        'rytmen din.</p>' +
+        '<button class="rekord" data-h="startOpptak"><span>🎙️</span>JEG ER KLAR</button>' +
+        '<p class="liten">Følg lysene, så lander slagene på takten.</p>' +
+        '</div>'
+      : '<div class="beskjed">' +
+        '<h1>LAG EN LYD</h1>' +
+        '<p>Si <b>BDUM</b>, <b>TSS</b> eller <b>PA-TSJ</b> rett inn i nettbrettet.</p>' +
+        '<button class="rekord" data-h="startOpptak"><span>🎤</span>TRYKK OG LAG LYD</button>' +
+        '<label class="bryter"><input type="checkbox" data-h="hodetelefoner"' +
+        (S.hodetelefoner ? ' checked' : '') + '><span>🎧 Jeg har hodetelefoner — behold beatet</span></label>' +
+        '</div>';
   } else if (ui.opptak === 'teller') {
-    h += '<div class="nedtelling"><div class="tall" id="nedtall">3</div>' +
-      '<p>GJØR DEG KLAR</p></div>';
+    h += '<div class="nedtelling"><div class="tall" id="nedtall">' +
+      (ui.beatModus ? 4 : 3) + '</div><p>GJØR DEG KLAR</p></div>';
   } else if (ui.opptak === 'tar') {
     h += '<canvas id="ring"></canvas>' +
-      '<div class="midtIRing"><div class="stortEmoji">🎤</div></div>' +
-      '<div class="tidslinje"><i id="tidsfyll"></i></div>' +
+      '<div class="midtIRing"><div class="stortEmoji">' +
+      (ui.beatModus ? '🎙️' : '🎤') + '</div></div>';
+    if (ui.beatModus) {
+      // metronomen: det eneste de har å holde takten etter når beatet er dempet
+      h += '<div class="steglys iOpptak">';
+      for (var s = 0; s < Motor.STEG; s++) {
+        h += '<i class="' + (s % 4 === 0 ? 'slag' : '') + '" style="--h:' + stegHue(s) + '"></i>';
+      }
+      h += '</div>';
+    }
+    h += '<div class="tidslinje"><i id="tidsfyll"></i></div>' +
       '<button class="hoved stopp" data-h="stoppOpptak">FERDIG</button>';
+  } else if (ui.opptak === 'beatsvar') {
+    h += beatSvarHtml();
   } else if (ui.opptak === 'lytt') {
     var p = ui.nyLyd;
     h += '<div class="lytt">' +
@@ -248,6 +275,41 @@ function tegnOpptak() {
   if (ui.opptak === 'tar') {
     stoppRing = Visuell.opptaksring(E('ring'), function () { return Opptak.analyse; });
   }
+}
+
+/* Rutenettet viser barnet hva appen faktisk hørte. Det er både belønningen og
+   forklaringen: ser de at ingen dype slag ble funnet, skjønner de av seg selv
+   at de må si BDUM kraftigere neste gang. */
+function beatSvarHtml() {
+  var r = ui.beatSvar;
+  if (!r) {
+    return '<div class="beskjed"><div class="stortEmoji">🤔</div>' +
+      '<h1>JEG HØRTE FOR LITE</h1>' +
+      '<p>Prøv igjen, og lag slagene tydeligere — gjerne litt nærmere nettbrettet.</p>' +
+      '<button class="hoved" data-h="omigjenBeat">PRØV IGJEN</button></div>';
+  }
+  var rader = Analyse.RYTMEINSTRUMENTER.map(function (id) {
+    var def = null;
+    Motor.BEATS.forEach(function (b) { if (b.id === id) def = b; });
+    var spor = r.spor[id], celler = '';
+    for (var i = 0; i < 16; i++) {
+      var tegn = spor.charAt(i);
+      celler += '<i class="' + (tegn === '.' ? '' : (tegn === 'o' || tegn === 'r' ? 'myk' : 'hard')) +
+        (i % 4 === 0 ? ' slag' : '') + '"></i>';
+    }
+    return '<div class="bpRad" style="--hue:' + def.hue + '">' +
+      '<span class="bpNavn">' + def.emoji + '</span>' +
+      '<div class="bpCeller">' + celler + '</div></div>';
+  }).join('');
+
+  return '<div class="beatsvar">' +
+    '<h1>BEATEN DIN</h1>' +
+    '<div class="bpRutenett">' + rader + '</div>' +
+    '<p>Jeg hørte <b>' + r.slagFunnet + ' slag</b> i ' + r.takter + ' runder.</p>' +
+    '<div class="knapperad">' +
+    '<button class="sekundaer" data-h="omigjenBeat">↺ PRØV IGJEN</button>' +
+    '<button class="hoved" data-h="bevarBeat">BRUK BEATEN ✓</button>' +
+    '</div></div>';
 }
 
 /* ---------- sanger og eksport ---------- */
@@ -395,6 +457,7 @@ function avbrytOpptak() {
 
 function tilOpptak() {
   ui.opptak = 'klar';
+  ui.beatSvar = null;
   vis('opptak');
   Opptak.aapne().catch(function () {
     ui.opptak = 'nekta';
@@ -404,11 +467,20 @@ function tilOpptak() {
 
 function startOpptak() {
   Opptak.aapne().then(function () {
-    if (!S.hodetelefoner) Motor.demp(true);
+    if (ui.beatModus) {
+      /* Transporten startes på nytt, så metronomen begynner på ett-slaget.
+         Beatet dempes alltid her, uansett hodetelefoner: hører de den gamle
+         beaten mens de lager en ny, hermer de den — og skulle høyttaleren
+         likevel stå på, ville appens egne trommer havnet i analysen. */
+      Motor.spill();
+      Motor.demp(true);
+    } else if (!S.hodetelefoner) {
+      Motor.demp(true);
+    }
     ui.opptak = 'teller';
     tegnOpptak();
     var slagtid = 60 / Motor.bpm * 1000;
-    var n = 3;
+    var n = ui.beatModus ? 4 : 3;
     var el = E('nedtall');
     nedtellingsklokke = setInterval(function () {
       if (ui.skjerm !== 'opptak' || ui.opptak !== 'teller') {
@@ -434,13 +506,20 @@ function startOpptak() {
 function gjorOpptak() {
   ui.opptak = 'tar';
   tegnOpptak();
+  finnLys();
   Opptak.begynn();
+  /* I beat-modus varer opptaket nøyaktig fire takter, ikke et rundt antall
+     sekunder. Da vet analysen hvor mange runder den skal stemme over, og
+     barnet får en naturlig slutt i stedet for et vilkårlig kutt. */
+  var maks = ui.beatModus
+    ? (60 / Motor.bpm / 4) * 16 * EGEN_TAKTER + 0.4
+    : Opptak.MAKS_SEK;
   var start = performance.now();
   opptaksklokke = setInterval(function () {
     var gaatt = (performance.now() - start) / 1000;
     var f = E('tidsfyll');
-    if (f) f.style.width = Math.min(100, gaatt / Opptak.MAKS_SEK * 100) + '%';
-    if (gaatt >= Opptak.MAKS_SEK) stoppOpptak();
+    if (f) f.style.width = Math.min(100, gaatt / maks * 100) + '%';
+    if (gaatt >= maks) stoppOpptak();
   }, 60);
 }
 
@@ -451,6 +530,15 @@ function stoppOpptak() {
   var buf = Opptak.avslutt();
   Opptak.slipp();
   Motor.demp(false);
+
+  if (ui.beatModus) {
+    ui.beatSvar = buf ? Analyse.tilBeat(buf, Motor.bpm) : null;
+    ui.opptak = 'beatsvar';
+    tegnOpptak();
+    if (!ui.beatSvar) toast('Jeg hørte for få slag');
+    return;
+  }
+
   if (!buf) {
     ui.opptak = 'klar';
     tegnOpptak();
@@ -473,6 +561,20 @@ function stoppOpptak() {
   ui.opptak = 'lytt';
   tegnOpptak();
   Motor.prov(buf, 'ren');
+}
+
+function bevarBeat() {
+  var r = ui.beatSvar;
+  if (!r) return;
+  S.egenBeat = {
+    id: EGEN_ID, navn: 'MIN BEAT', emoji: '⭐',
+    bpm: Motor.bpm, spor: r.spor
+  };
+  Motor.leggTilGrunnbeat(S.egenBeat);
+  ui.beatModus = false;
+  ui.beatSvar = null;
+  byttGrunnbeat(EGEN_ID);
+  vis('brett');
 }
 
 function velgEffekt(id) {
@@ -643,9 +745,14 @@ var handlinger = {
   tilBrett: function () {
     avbrytOpptak();
     ui.nyLyd = null;
+    ui.beatModus = false;
+    ui.beatSvar = null;
     vis('brett');
   },
-  tilOpptak: tilOpptak,
+  tilOpptak: function () { ui.beatModus = false; tilOpptak(); },
+  lagEgenBeat: function () { ui.beatModus = true; tilOpptak(); },
+  omigjenBeat: function () { ui.beatSvar = null; tilOpptak(); },
+  bevarBeat: bevarBeat,
   prov: function () { ui.opptak = 'klar'; tilOpptak(); },
   startOpptak: startOpptak,
   stoppOpptak: stoppOpptak,
@@ -744,6 +851,14 @@ function finnElementer() {
     munnEl[id] = kort[i].querySelector('.munn');
     oyeEl[id] = kort[i].querySelectorAll('.oye');
   }
+  finnLys();
+}
+
+/* Steglysene finnes på to skjermer: brettet, og opptaksskjermen når barnet
+   lager sin egen beat. Derfor plukkes de opp for seg. */
+function finnLys() {
+  lysEl = [];
+  sisteLys = -1;
   var lys = document.querySelectorAll('.steglys i');
   for (var j = 0; j < lys.length; j++) lysEl.push(lys[j]);
 }
@@ -773,7 +888,17 @@ function blunkeAnimasjon(id, naaMs) {
 }
 
 Visuell.leggTil(function (dt, naaMs) {
-  if (ui.skjerm !== 'brett' || !Motor.ctx) return;
+  if (!Motor.ctx) return;
+
+  // taktlysene går uansett skjerm — de er metronom under opptak av egen beat
+  var s = Visuell.takt.steg;
+  if (s !== sisteLys && lysEl.length) {
+    if (sisteLys >= 0 && lysEl[sisteLys]) lysEl[sisteLys].classList.remove('naa');
+    if (lysEl[s]) lysEl[s].classList.add('naa');
+    sisteLys = s;
+  }
+
+  if (ui.skjerm !== 'brett') return;
   var naa = Motor.ctx.currentTime;
   var plasser = Motor.plasser;
   for (var i = 0; i < plasser.length; i++) {
@@ -789,12 +914,6 @@ Visuell.leggTil(function (dt, naaMs) {
     if (m) m.style.transform = 'scaleY(' + (0.3 + n * 2.6).toFixed(2) + ')';
     blunkeAnimasjon(p.id, naaMs);
   }
-  var s = Visuell.takt.steg;
-  if (s !== sisteLys && lysEl.length) {
-    if (sisteLys >= 0 && lysEl[sisteLys]) lysEl[sisteLys].classList.remove('naa');
-    if (lysEl[s]) lysEl[s].classList.add('naa');
-    sisteLys = s;
-  }
 });
 
 /* ---------- oppstart ---------- */
@@ -802,6 +921,8 @@ Visuell.leggTil(function (dt, naaMs) {
 function oppstart() {
   S = les();
   byggBrett();
+  // barnas egen beat må være registrert før den kan velges
+  if (S.egenBeat) Motor.leggTilGrunnbeat(S.egenBeat);
   /* Grunnbeaten settes uten sitt eget tempo, slik at et tempo barnet har
      stilt selv overlever at appen lukkes. */
   Motor.settGrunnbeat(S.grunnbeat || 'boombap', false);

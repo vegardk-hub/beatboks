@@ -13,6 +13,7 @@ HTTPS (eller `localhost`) og den virker.
 | --- | --- |
 | `audio.js` | Lydmotoren: trommesyntese, effektkjeder, taktklokke, eksport |
 | `record.js` | Mikrofon, etterarbeid på opptaket, lagring i IndexedDB |
+| `analyse.js` | Hører på et opptak og skriver det ned som en beat |
 | `monsters.js` | Tegner monstrene prosedyrisk som neon-SVG |
 | `visual.js` | Bakgrunnen og visualiseringsringen under opptak |
 | `app.js` | Skjermer, tilstand og hendelser |
@@ -47,6 +48,21 @@ Har de hodetelefoner, kan de skru på «behold beatet» på opptaksskjermen.
 om loopen lander på slaget — et opptak med et halvt sekund nøling foran kommer
 alltid for sent, uansett hvor godt barnet traff.
 
+**Egen beat: tempoet gjettes ikke.** Barna beatboxer i fire takter mens
+steglysene løper som metronom, så appen vet allerede hvor raskt det går og
+trenger bare finne ut hvor i takten de begynte. Det er både mer treffsikkert
+enn tempogjetting og lettere å forstå: følger du lysene, blir beaten din.
+Beatet er alltid dempet under dette opptaket — hører de den gamle beaten mens
+de lager en ny, hermer de den, og skulle høyttaleren stå på ville appens egne
+trommer havnet i analysen.
+
+**Analysen måler ØKNING, ikke nivå.** Det gjelder både anslagsdeteksjonen og
+gjenkjenningen, og begge steder var det forskjellen på å virke og ikke virke:
+en kick sveiper nedover i tonehøyde, så grunntonen vandrer inn i bassbåndet
+etter anslaget og så ut som et nytt slag; og en hi-hat slått 200 ms etter en
+kick står fortsatt i kickens bass-hale og ble målt som skarptromme. Begge
+forsvant da målingen ble gjort mot nivået like før slaget.
+
 **Monstrene bygges fra silhuetten og ut.** Første versjon hadde én kroppsform
 med varierende pynt, og da ble alle monstrene samme hode med ulikt antall
 øyne — det øyet fester seg ved er omrisset, ikke detaljene. Nå finnes det åtte
@@ -73,6 +89,29 @@ const b = await Motor.ctx.decodeAudioData(await (await Motor.eksporter(2)).array
 const d = b.getChannelData(0);
 console.log('topp', Math.max(...d).toFixed(3));   // skal ligge under 0,95
 ```
+
+Endrer du på gjenkjenningen i `analyse.js`, kan du teste den mot en fasit du
+lager selv: sett opp en **enstemmig** grunnbeat (aldri to lyder på samme steg —
+en munn kan ikke det heller), eksporter fire takter, og send det tilbake inn:
+
+```js
+Motor.leggTilGrunnbeat({ id:'t', navn:'T', emoji:'T', bpm:92, spor: {
+  dunder:'x.......x.......', skarp:'....x.......x...', tikk:'..x...x...x...x.',
+  riste:'................', rare:'................', klapp:'................',
+  bass:'. . . . . . . . . . . . . . . .', blipp:'. . . . . . . . . . . . . . . .' } });
+Motor.settGrunnbeat('t', false);
+Motor.plasser.forEach(p => p.paa = ['dunder','skarp','tikk'].indexOf(p.id) >= 0);
+const buf = await Motor.ctx.decodeAudioData(await (await Motor.eksporter(4)).arrayBuffer());
+console.log(Analyse.tilBeat(buf, 92).spor);   // skal gi mønsteret over tilbake
+```
+
+`tilBeat` returnerer også `treff`, `fase` og `rotasjon`, så det går an å se
+nøyaktig hva appen hørte og hvor den la slagene.
+
+Kjente grenser: to lyder på samme sekstendedel smelter til ett anslag og
+gjenkjennes som den kraftigste av dem — det gjør ikke noe i praksis, siden en
+munn er enstemmig. Rytmeegg og hi-hat skilles bare når «tsss» faktisk er
+merkbart lengre enn «ts»; ellers blir begge til hi-hat.
 
 Et nytt beat-monster legges i `BEATS` samme sted — husk da å gi det et spor i
 alle fem grunnbeatene, ellers er det stumt i de andre. En ny effekt legges i
