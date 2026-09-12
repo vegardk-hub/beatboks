@@ -1,0 +1,636 @@
+:root {
+  --natt: #07030f;
+  --natt-2: #120826;
+  --ink: #f2eaff;
+  --ink-svak: #a99cc4;
+  --rosa: #ff3ca6;
+  --cyan: #2de2e6;
+  --lilla: #a45cff;
+  --lime: #c4ff3e;
+  --gul: #ffd23e;
+  --r: 16px;
+  --r-lg: 26px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+/* Fjerner nettleserens ventetid på dobbelttrykk. Uten dette kommer lyden
+   omtrent 300 ms for sent, og et instrument som svarer sent er ikke et
+   instrument. Rulling virker fortsatt. */
+button, .kort, .merke, .eff, .rund, .spill { touch-action: manipulation; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  color: var(--ink);
+  /* Emoji-fontene står eksplisitt sist. Uten dem faller Windows tilbake til
+     «Segoe UI», som ikke har emoji-glyfer, og halve grensesnittet blir tomme
+     firkanter for den som tester på PC. */
+  font-family: "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+  font-size: 17px;
+  font-weight: 700;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+  background: var(--natt);
+}
+
+/* Fast bakgrunn under alt. Lerretet tegner stjerner og gitter oppå denne. */
+body {
+  background:
+    radial-gradient(120% 80% at 50% 110%, #2a0a4a 0%, transparent 60%),
+    radial-gradient(90% 60% at 10% 0%, #23063c 0%, transparent 55%),
+    linear-gradient(180deg, #0a0418 0%, #07030f 100%);
+  overflow: hidden;
+}
+
+#bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Flislagt kolonne: steglysene skyves til bunnen av skjermen på høye
+   nettbrett i stedet for å henge løst under kortene. */
+#app {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
+    calc(10px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
+}
+
+/* ---------- merkevare ---------- */
+
+.merkeord {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 8px var(--rosa), 0 0 26px var(--rosa), 0 0 48px #ff0080;
+}
+.merkeord span {
+  color: var(--cyan);
+  text-shadow: 0 0 8px var(--cyan), 0 0 26px var(--cyan), 0 0 48px #00d4ff;
+}
+.merkeord.stor { font-size: clamp(44px, 13vw, 92px); letter-spacing: 4px; }
+
+.versjon {
+  text-align: center;
+  color: #4b3d68;
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding: 14px 0 4px;
+}
+
+/* ---------- startskjerm ---------- */
+
+.startskjerm {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+}
+.startskjerm p {
+  color: var(--ink-svak);
+  margin: 0 0 10px;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+/* ---------- topplinje ---------- */
+
+.topp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.topp .merkeord { flex: 1 1 auto; }
+
+.tempo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(164, 92, 255, 0.5);
+  border-radius: 999px;
+  padding: 4px;
+}
+.tempo .tall { min-width: 56px; text-align: center; line-height: 1; }
+.tempo .tall b { display: block; font-size: 20px; color: var(--cyan); }
+.tempo .tall span { font-size: 9px; letter-spacing: 2px; color: var(--ink-svak); }
+
+.rund {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.rund:active { transform: scale(0.92); }
+.rund.stor { font-size: 22px; }
+
+.spill {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(160deg, var(--lime), #6fd400);
+  color: #06210a;
+  font-size: 24px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 0 24px rgba(196, 255, 62, 0.55);
+}
+.spill.gaar {
+  background: linear-gradient(160deg, var(--rosa), #c4007a);
+  color: #fff;
+  box-shadow: 0 0 26px rgba(255, 60, 166, 0.6);
+}
+.spill:active { transform: scale(0.93); }
+
+/* ---------- seksjoner og rutenett ---------- */
+
+#app > .opptak, #app > .side, #app > .startskjerm { flex: 1 0 auto; }
+.topp, .seksjon { flex: 0 0 auto; }
+
+.seksjon { margin-bottom: 14px; }
+.seksjon h2 {
+  font-size: 12px;
+  letter-spacing: 4px;
+  color: var(--ink-svak);
+  margin: 6px 2px 8px;
+  font-weight: 800;
+}
+
+.rutenett {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+
+/* ---------- monsterkortene ---------- */
+
+/* --niva og --sprett settes av animasjonsløkken. Alt som beveger seg her er
+   transform og box-shadow, som nettleseren klarer på GPU. Å animere filtre
+   eller farger i stedet ville gitt hakking på et nettbrett. */
+.kort {
+  --niva: 0;
+  --sprett: 0;
+  position: relative;
+  aspect-ratio: 1 / 1.15;
+  border-radius: var(--r);
+  border: 2px solid hsl(var(--hue) 90% 60% / 0.55);
+  background:
+    radial-gradient(85% 65% at 50% 25%, hsl(var(--hue) 85% 22% / 0.9), transparent 70%),
+    rgba(12, 6, 26, 0.72);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px 4px 4px;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+  /* Et avslått monster skal fortsatt se ut som et monster man kan skru på,
+     ikke som noe som er borte. Derfor dempes det, men ikke bort. */
+  opacity: 0.58;
+  filter: saturate(0.4);
+  transform: scale(calc(1 + var(--sprett) * 0.07));
+  transition: opacity 0.18s, filter 0.18s;
+}
+
+.kort.paa {
+  opacity: 1;
+  filter: none;
+  border-color: hsl(var(--hue) 100% 68%);
+  box-shadow:
+    0 0 calc(8px + var(--niva) * 34px) hsl(var(--hue) 100% 60% / calc(0.35 + var(--niva) * 0.5)),
+    inset 0 0 calc(6px + var(--niva) * 22px) hsl(var(--hue) 100% 60% / 0.28);
+  transform: scale(calc(1 + var(--sprett) * 0.09 + var(--niva) * 0.02));
+}
+
+.kort:active { transform: scale(0.95); }
+
+.figur { width: 100%; flex: 1 1 auto; min-height: 0; }
+.mstr { width: 100%; height: 100%; display: block; }
+
+/* Munnen strekkes loddrett i takt med lydnivået. fill-box gjør at den vokser
+   fra sin egen midte i stedet for fra hjørnet av hele tegningen. */
+.munn {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.05s linear;
+}
+.oye {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.07s ease-out;   /* mykt blunk, ikke et hopp */
+}
+
+.navn {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: hsl(var(--hue, 280) 100% 82%);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 2px 5px 0;
+}
+
+.merke {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 15px;
+  line-height: 1;
+  background: rgba(6, 2, 14, 0.82);
+  border: 1px solid hsl(var(--hue) 90% 60% / 0.6);
+  border-radius: 999px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+/* Merket kan ikke bli visuelt mye større uten å dekke monsteret, men en
+   sjuårings finger treffer ikke 50 piksler. Det usynlige feltet utenfor gir
+   knappen et trykkområde på nær 70x48 uten at den ser klumpete ut. */
+.merke::before {
+  content: "";
+  position: absolute;
+  inset: -11px -10px -13px -13px;
+}
+.merke:active { transform: scale(0.9); }
+
+.lys {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 3px;
+  height: 3px;
+  border-radius: 3px;
+  background: hsl(var(--hue) 100% 65%);
+  opacity: calc(var(--niva) * 1.4);
+}
+
+.kort.nytt {
+  opacity: 1;
+  filter: none;
+  border: 2px dashed rgba(45, 226, 230, 0.7);
+  background: rgba(45, 226, 230, 0.07);
+  justify-content: center;
+  gap: 8px;
+}
+.kort.nytt .mikro { font-size: 34px; }
+.kort.nytt .navn { color: var(--cyan); font-size: 12px; }
+
+/* ---------- steglys ---------- */
+
+.steglys {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  padding: 10px 0 2px;
+  margin-top: auto;
+  flex: 0 0 auto;
+}
+.steglys i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 0.08s, box-shadow 0.08s;
+}
+.steglys i.slag { background: rgba(255, 255, 255, 0.26); }
+.steglys i.naa {
+  background: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan);
+}
+
+/* ---------- knapper ---------- */
+
+.hoved, .sekundaer {
+  border: none;
+  border-radius: 999px;
+  padding: 16px 26px;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+}
+.hoved {
+  background: linear-gradient(160deg, var(--lime), #63c400);
+  color: #06210a;
+  box-shadow: 0 0 22px rgba(196, 255, 62, 0.45);
+}
+.sekundaer {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+}
+.sekundaer.fare { border-color: rgba(255, 60, 106, 0.6); color: #ff7ba1; }
+.hoved:active, .sekundaer:active { transform: scale(0.96); }
+
+.knapperad { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.knapperad.bred { margin: 16px 0 22px; }
+
+.rekord {
+  border: none;
+  border-radius: 999px;
+  padding: 22px 34px;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  background: linear-gradient(160deg, var(--rosa), #8a00b8);
+  box-shadow: 0 0 34px rgba(255, 60, 166, 0.6);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  animation: puls 2.2s ease-in-out infinite;
+}
+.rekord span { font-size: 26px; }
+.rekord:active { transform: scale(0.95); }
+
+@keyframes puls {
+  0%, 100% { box-shadow: 0 0 26px rgba(255, 60, 166, 0.5); }
+  50% { box-shadow: 0 0 50px rgba(255, 60, 166, 0.85); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rekord { animation: none; }
+}
+
+.tilbake {
+  position: absolute;
+  top: calc(6px + env(safe-area-inset-top));
+  right: calc(6px + env(safe-area-inset-right));
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(10, 4, 22, 0.7);
+  color: var(--ink);
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 3;
+}
+
+/* ---------- opptaksskjerm ---------- */
+
+.opptak {
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 18px;
+}
+.beskjed { max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.beskjed h1 {
+  font-size: clamp(28px, 8vw, 44px);
+  margin: 0;
+  letter-spacing: 3px;
+  color: #fff;
+  text-shadow: 0 0 12px var(--lilla), 0 0 34px var(--lilla);
+}
+.beskjed p { color: var(--ink-svak); margin: 0; font-size: 17px; line-height: 1.5; font-weight: 600; }
+.beskjed b { color: var(--cyan); }
+.stortEmoji { font-size: 56px; }
+
+.bryter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-svak);
+  font-size: 14px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+.bryter input { width: 22px; height: 22px; accent-color: var(--cyan); }
+
+.nedtelling { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.nedtelling .tall {
+  font-size: clamp(90px, 30vw, 190px);
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 20px var(--rosa), 0 0 60px var(--rosa);
+  line-height: 1;
+}
+.nedtelling .tall.slag { animation: smell 0.4s ease-out; }
+.nedtelling p { letter-spacing: 4px; color: var(--ink-svak); margin: 0; }
+
+@keyframes smell {
+  0% { transform: scale(1.5); opacity: 0.2; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+#ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.midtIRing {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+.midtIRing .stortEmoji { font-size: clamp(48px, 12vw, 78px); }
+
+.tidslinje {
+  position: relative;
+  z-index: 2;
+  width: min(70%, 380px);
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.tidslinje i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--cyan), var(--rosa));
+}
+.stopp { position: relative; z-index: 2; }
+
+/* ---------- lytt og velg effekt ---------- */
+
+.lytt { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
+.nyttMonster {
+  width: clamp(130px, 32vw, 190px);
+  filter: drop-shadow(0 0 22px hsl(var(--hue) 100% 60% / 0.7));
+}
+
+.effektvalg, .valgrad {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 640px;
+}
+
+.eff {
+  border: 2px solid hsl(var(--hue, 280) 90% 60% / 0.45);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  border-radius: 14px;
+  padding: 10px 4px 8px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.eff span { font-size: 24px; }
+.eff.valgt {
+  background: hsl(var(--hue, 280) 90% 55% / 0.25);
+  border-color: hsl(var(--hue, 280) 100% 70%);
+  box-shadow: 0 0 18px hsl(var(--hue, 280) 100% 60% / 0.5);
+}
+.eff:active { transform: scale(0.94); }
+
+/* ---------- sider ---------- */
+
+.side { position: relative; max-width: 640px; margin: 0 auto; padding-top: 20px; }
+.side h1 {
+  font-size: 26px;
+  letter-spacing: 3px;
+  text-align: center;
+  text-shadow: 0 0 14px var(--lilla);
+}
+.tomt { color: var(--ink-svak); text-align: center; font-weight: 600; line-height: 1.5; }
+
+.sangliste { display: flex; flex-direction: column; gap: 10px; }
+.sang { display: flex; gap: 8px; }
+.sangnavn {
+  flex: 1;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(164, 92, 255, 0.4);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.sangnavn b { display: block; font-size: 17px; letter-spacing: 2px; }
+.sangnavn span { font-size: 12px; color: var(--ink-svak); font-weight: 600; }
+.slett {
+  width: 52px;
+  border-radius: var(--r);
+  border: 2px solid rgba(255, 60, 106, 0.4);
+  background: rgba(255, 60, 106, 0.1);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* ---------- arket ---------- */
+
+#ark { position: fixed; inset: 0; z-index: 10; display: none; }
+#ark.vis { display: block; }
+.arkbakgrunn { position: absolute; inset: 0; background: rgba(4, 1, 10, 0.72); backdrop-filter: blur(3px); }
+.arkinnhold {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 92%;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #150a29, #0a0417);
+  border-top: 3px solid hsl(var(--hue, 280) 100% 65%);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  padding: 18px 16px calc(20px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: oppfra 0.22s ease-out;
+}
+
+@keyframes oppfra {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.arkinnhold h3 {
+  margin: 4px 0 0;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--ink-svak);
+}
+.arktopp { display: flex; align-items: center; gap: 14px; }
+.arkfigur { width: 76px; flex: none; }
+.navnefelt {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.07);
+  border: 2px solid hsl(var(--hue, 280) 90% 60% / 0.5);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-family: inherit;
+}
+.spiller { width: 100%; }
+
+/* ---------- toast ---------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 20px);
+  background: rgba(10, 4, 24, 0.94);
+  border: 2px solid var(--cyan);
+  color: var(--ink);
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 15px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 20;
+  box-shadow: 0 0 24px rgba(45, 226, 230, 0.4);
+  max-width: 88vw;
+  text-align: center;
+}
+.toast.vis { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- store skjermer ---------- */
+
+@media (min-width: 760px) {
+  .rutenett { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 14px; }
+  #app { padding-left: calc(28px + env(safe-area-inset-left)); padding-right: calc(28px + env(safe-area-inset-right)); }
+  .navn { font-size: 13px; }
+}

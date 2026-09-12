@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Beatboks</title>
+<meta name="theme-color" content="#07030f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Beatboks">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- Bakgrunnen tegnes på canvas: stjerner, neongitter og pulsen fra miksen.
+     Den ligger bakerst og fanger aldri trykk. -->
+<canvas id="bg" aria-hidden="true"></canvas>
+
+<div id="app"></div>
+<div id="ark"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="audio.js"></script>
+<script src="monsters.js"></script>
+<script src="record.js"></script>
+<script src="visual.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
