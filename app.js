@@ -3,7 +3,7 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v6';
+var VERSJON = 'v7';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 8;
 var EKSPORT_TAKTER = 8;
@@ -157,7 +157,11 @@ function kortHtml(p) {
   return '<div class="kort' + (p.paa ? ' paa' : '') + '" data-h="veksle" data-id="' +
     p.id + '" role="button" tabindex="0" style="--hue:' + p.hue + '">' +
     '<div class="figur">' + svgFor(p) + '</div>' +
-    '<div class="navn">' + tekst(p.navn) + '</div>' +
+    /* Navnet på en egen lyd er selv en knapp. Det er der barnet leter når de
+       vil kalle den noe annet — ikke i et merke oppe i hjørnet. */
+    (p.kind === 'stemme'
+      ? '<div class="navn kanEndres" data-h="stell" data-id="' + p.id + '">' + tekst(p.navn) + '</div>'
+      : '<div class="navn">' + tekst(p.navn) + '</div>') +
     (p.kind === 'stemme'
       ? '<div class="merke" data-h="stell" data-id="' + p.id + '">' + e.emoji + r.emoji + '</div>'
       : '') +
@@ -301,6 +305,11 @@ function tegnOpptak() {
     var p = ui.nyLyd;
     h += '<div class="lytt">' +
       '<div class="nyttMonster" style="--hue:' + p.hue + '">' + Monstre.tegn(p.id + ':' + p.hue, p.hue) + '</div>' +
+      /* Navnet settes her, i det øyeblikket lyden er ny og de vet hva den
+         skal hete. Å måtte finne fram til et innstillingsark etterpå er
+         grunnen til at ingen av lydene noensinne het noe annet enn LYD 1. */
+      '<input class="navnefelt midtstilt" data-h="nyttNavn" value="' + tekst(p.navn) +
+      '" maxlength="10" aria-label="Navn på lyden">' +
       '<div class="effektvalg">' +
       Motor.EFFEKTER.map(function (e) {
         return '<button class="eff' + (p.effekt === e.id ? ' valgt' : '') +
@@ -880,7 +889,15 @@ var handlinger = {
     if (!p) return;
     p.navn = (el.value || 'LYD').toUpperCase().slice(0, 10);
     S.stemmer.forEach(function (st) { if (st.id === p.id) st.navn = p.navn; });
+    /* Kortet bak arket oppdateres mens de skriver. Uten dette står det gamle
+       navnet der helt til arket lukkes, og da ser det ut som om det ikke
+       virket. */
+    var kort = kortEl[p.id] && kortEl[p.id].querySelector('.navn');
+    if (kort) kort.textContent = p.navn;
     skriv();
+  },
+  nyttNavn: function (el) {
+    if (ui.nyLyd) ui.nyLyd.navn = (el.value || 'LYD').toUpperCase().slice(0, 10);
   },
   lagreSang: lagreSang,
   hentSang: function (el) { hentSang(el.dataset.id); },
@@ -924,7 +941,7 @@ document.addEventListener('click', function (e) {
   var el = e.target.closest ? e.target.closest('[data-h]') : null;
   if (!el) return;
   var h = el.dataset.h;
-  if (h === 'veksle' || h === 'navn' || h === 'hodetelefoner') return;
+  if (h === 'veksle' || h === 'navn' || h === 'nyttNavn' || h === 'hodetelefoner') return;
   e.preventDefault();
   kjor(h, el);
 });
@@ -932,12 +949,23 @@ document.addEventListener('click', function (e) {
 document.addEventListener('change', function (e) {
   var el = e.target.closest ? e.target.closest('[data-h]') : null;
   if (!el) return;
-  if (el.dataset.h === 'hodetelefoner' || el.dataset.h === 'navn') kjor(el.dataset.h, el);
+  if (el.dataset.h === 'hodetelefoner' || el.dataset.h === 'navn' || el.dataset.h === 'nyttNavn') {
+    kjor(el.dataset.h, el);
+  }
 });
 
+/* Navnefeltene oppdaterer mens det skrives, ikke forst naar feltet forlates.
+   Et barn som skriver og trykker rett paa LEGG TIL skal ikke miste navnet. */
 document.addEventListener('input', function (e) {
-  var el = e.target.closest ? e.target.closest('[data-h="navn"]') : null;
-  if (el) kjor('navn', el);
+  var el = e.target.closest ? e.target.closest('[data-h="navn"], [data-h="nyttNavn"]') : null;
+  if (el) kjor(el.dataset.h, el);
+});
+
+// Enter lukker tastaturet paa nettbrett i stedet for aa gjore ingenting
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter') return;
+  var el = e.target.closest ? e.target.closest('[data-h="navn"], [data-h="nyttNavn"]') : null;
+  if (el) el.blur();
 });
 
 /* ---------- animasjon av brettet ---------- */

@@ -260,6 +260,23 @@ body {
   padding: 2px 5px 0;
 }
 
+/* Prikket linje under navnet på egne lyder: den eneste hinten barn trenger om
+   at noe kan skrives om. Trykkfeltet strekkes ut under teksten, så en finger
+   treffer uten å skrive på monsteret over. */
+.navn.kanEndres {
+  position: relative;
+  border-bottom: 2px dotted hsl(var(--hue, 280) 100% 70% / 0.55);
+  cursor: text;
+}
+.navn.kanEndres::after {
+  content: "";
+  position: absolute;
+  inset: -6px -10px -8px;
+}
+.navn.kanEndres:active { color: #fff; }
+
+.navnefelt.midtstilt { text-align: center; max-width: 320px; width: 100%; }
+
 .merke {
   position: absolute;
   top: 4px;
