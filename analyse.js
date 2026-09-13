@@ -188,6 +188,48 @@ var Analyse = (function () {
     return k;
   }
 
+  /* ---------- sporene som følger av de andre ----------
+
+     Klapp, bass og blipp bestemmes ikke av hva barnet sa, men av hva de fem
+     rytmesporene ble. Derfor regnes de ut for seg — og på nytt hver gang barnet
+     endrer en rute i kartet, slik at bassen henger med når de flytter kicken. */
+
+  function utled(spor) {
+    var i;
+
+    /* Klappet legger seg oppå de kraftigste skarptrommeslagene. Da har barnet
+       et lag til å skru på som tykner nettopp der de selv la trykket. */
+    spor.klapp = spor.skarp.replace(/o/g, '.');
+
+    /* Bass følger kicken, så bunnen henger sammen. */
+    var bassToner = ['A1', 'A1', 'C2', 'E2'], bass = [], nr = 0;
+    for (i = 0; i < 16; i++) {
+      bass.push(spor.dunder.charAt(i) !== '.' ? bassToner[nr++ % bassToner.length] : null);
+    }
+
+    /* Blipp legger seg i hullene — der ingenting skjer — så melodien fyller ut
+       i stedet for å slåss med slagene. */
+    var opptatt = [];
+    for (i = 0; i < 16; i++) {
+      opptatt.push(RYTMEINSTRUMENTER.some(function (id) { return spor[id].charAt(i) !== '.'; }));
+    }
+    var blippToner = ['A4', 'C5', 'E5', 'D5'], blipp = [], satt = 0;
+    for (i = 0; i < 16; i++) blipp.push(null);
+    // først de tunge halvslagene, så de lette
+    for (i = 0; i < 16 && satt < 4; i += 2) {
+      if (!opptatt[i]) blipp[i] = blippToner[satt++];
+    }
+    for (i = 1; i < 16 && satt < 4; i += 2) {
+      if (!opptatt[i]) blipp[i] = blippToner[satt++];
+    }
+    // er hver eneste rute i bruk, legger den seg oppå — da er beaten uansett tett
+    if (satt === 0) { blipp[2] = 'A4'; blipp[10] = 'C5'; }
+
+    spor.bass = bass;
+    spor.blipp = blipp;
+    return spor;
+  }
+
   /* ---------- hele jobben ---------- */
 
   function tilBeat(buffer, bpm) {
@@ -274,35 +316,7 @@ var Analyse = (function () {
     // «rare» bruker egne tegn for sine to lyder
     spor.rare = spor.rare.replace(/x/g, 'k').replace(/o/g, 'r');
 
-    /* Klappet legger seg oppå de kraftigste skarptrommeslagene. Da har barnet
-       et lag til å skru på som tykner nettopp der de selv la trykket. */
-    spor.klapp = spor.skarp.replace(/o/g, '.');
-
-    /* Bass følger kicken, så bunnen henger sammen. Blipp legger seg i hullene
-       — de stedene ingenting skjer — så melodien fyller ut i stedet for å
-       slåss med slagene. */
-    var bassToner = ['A1', 'A1', 'C2', 'E2'], bass = [], nr = 0;
-    for (i = 0; i < 16; i++) {
-      bass.push(spor.dunder.charAt(i) !== '.' ? bassToner[nr++ % bassToner.length] : null);
-    }
-    var opptatt = [];
-    for (i = 0; i < 16; i++) {
-      opptatt.push(RYTMEINSTRUMENTER.some(function (id) { return spor[id].charAt(i) !== '.'; }));
-    }
-    var blippToner = ['A4', 'C5', 'E5', 'D5'], blipp = [], satt = 0;
-    for (i = 0; i < 16; i++) blipp.push(null);
-    // først de tunge halvslagene, så de lette — melodien skal helst i hullene
-    for (i = 0; i < 16 && satt < 4; i += 2) {
-      if (!opptatt[i]) blipp[i] = blippToner[satt++];
-    }
-    for (i = 1; i < 16 && satt < 4; i += 2) {
-      if (!opptatt[i]) blipp[i] = blippToner[satt++];
-    }
-    // er hver eneste rute i bruk, legger den seg oppå — da er beaten uansett tett
-    if (satt === 0) { blipp[2] = 'A4'; blipp[10] = 'C5'; }
-
-    spor.bass = bass;
-    spor.blipp = blipp;
+    utled(spor);
 
     var antall = {};
     RYTMEINSTRUMENTER.forEach(function (id) {
@@ -321,5 +335,5 @@ var Analyse = (function () {
     };
   }
 
-  return { tilBeat: tilBeat, RYTMEINSTRUMENTER: RYTMEINSTRUMENTER };
+  return { tilBeat: tilBeat, utled: utled, RYTMEINSTRUMENTER: RYTMEINSTRUMENTER };
 })();

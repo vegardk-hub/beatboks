@@ -418,13 +418,20 @@ body {
 .bpRad { display: flex; align-items: center; gap: 10px; }
 .bpNavn { font-size: 20px; width: 26px; text-align: center; flex: none; }
 .bpCeller { display: flex; gap: 3px; flex: 1; }
+
+/* Rutene er knapper, ikke pynt: barnet trykker slag inn og ut her. Derfor er
+   de høye nok til å treffes med en finger, og svarer på trykk. */
 .bpCeller i {
   flex: 1;
-  height: 18px;
-  border-radius: 4px;
+  height: 30px;
+  border-radius: 5px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.1s, box-shadow 0.1s, transform 0.06s;
 }
+.bpCeller i:active { transform: scale(0.86); }
 /* hovedslagene får en anelse lysere bunn, så takten er lett å telle */
 .bpCeller i.slag { background: rgba(255, 255, 255, 0.1); }
 .bpCeller i.myk {

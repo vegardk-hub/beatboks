@@ -336,6 +336,16 @@ var Motor = (function () {
     return ny;
   }
 
+  /* Brukes til utkastet mens barnet redigerer kartet sitt. Den som fjerner må
+     selv velge en annen grunnbeat etterpå — vi rører ikke den som spiller, for
+     da ville lyden hoppet midt i en redigering. */
+  function fjernGrunnbeat(id) {
+    for (var i = 0; i < GRUNNBEATS.length; i++) {
+      if (GRUNNBEATS[i].id === id) { GRUNNBEATS.splice(i, 1); return true; }
+    }
+    return false;
+  }
+
   /* ---------- effekter ---------- */
 
   /* Kurvene har et ODDE antall punkter, og x regnes ut mot n-1.
@@ -815,7 +825,8 @@ var Motor = (function () {
     GRUNNBEATS: GRUNNBEATS,
     effekt: effekt, rytme: rytme, wav: wav, lydsesjon: lydsesjon,
     start: start, spill: spill, stopp: stopp, demp: demp,
-    settBpm: settBpm, settGrunnbeat: settGrunnbeat, leggTilGrunnbeat: leggTilGrunnbeat,
+    settBpm: settBpm, settGrunnbeat: settGrunnbeat,
+    leggTilGrunnbeat: leggTilGrunnbeat, fjernGrunnbeat: fjernGrunnbeat,
     plassEndret: plassEndret,
     smak: smak, prov: prov,
     eksporter: eksporter, sikreKjeder: sikreKjeder,

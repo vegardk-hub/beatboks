@@ -64,6 +64,14 @@ Beatet er alltid dempet under dette opptaket — hører de den gamle beaten mens
 de lager en ny, hermer de den, og skulle høyttaleren stå på ville appens egne
 trommer havnet i analysen.
 
+**Kartet er et instrument, ikke en kvittering.** Rutenettet som vises etter
+analysen kan redigeres: barnet trykker slag inn og ut, og utkastet spiller hele
+tiden mens de gjør det, så endringen høres med én gang og i sammenheng. Å vise
+en stille tegning og først spille den av etterpå ville gjort dette til en
+gjettelek. Alle trommemonstrene skrus på mens de redigerer — ellers ville en
+rute de trykker på vært stum fordi monsteret tilfeldigvis sto av — og brettet
+settes tilbake slik det var hvis de angrer.
+
 **Analysen måler ØKNING, ikke nivå.** Det gjelder både anslagsdeteksjonen og
 gjenkjenningen, og begge steder var det forskjellen på å virke og ikke virke:
 en kick sveiper nedover i tonehøyde, så grunntonen vandrer inn i bassbåndet

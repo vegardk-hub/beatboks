@@ -3,17 +3,18 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v5';
+var VERSJON = 'v6';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 8;
 var EKSPORT_TAKTER = 8;
 var EGEN_ID = 'minbeat';
-var EGEN_TAKTER = 4;      // fire takter blir ca. ti sekunder i vanlig tempo
+var EGEN_TAKTER = 4;           // fire takter blir ca. ti sekunder i vanlig tempo
+var UTKAST_ID = 'utkast';      // beaten som spiller mens barnet redigerer kartet
 
 var S = null;
 var ui = {
   skjerm: 'start', opptak: 'klar', nyLyd: null, nyId: null, stellId: null, ark: null,
-  beatModus: false, beatSvar: null, aktivSang: null
+  beatModus: false, beatSvar: null, beatFor: null, aktivSang: null
 };
 
 /* Merket «denne sangen spiller nå» skal være ærlig. Så fort barnet skrur på et
@@ -316,14 +317,21 @@ function tegnOpptak() {
   h += '</div>';
   E('app').innerHTML = h;
 
+  finnLys();
   if (ui.opptak === 'tar') {
     stoppRing = Visuell.opptaksring(E('ring'), function () { return Opptak.analyse; });
   }
 }
 
-/* Rutenettet viser barnet hva appen faktisk hørte. Det er både belønningen og
-   forklaringen: ser de at ingen dype slag ble funnet, skjønner de av seg selv
-   at de må si BDUM kraftigere neste gang. */
+function celleKlasse(tegn, steg) {
+  return (tegn === '.' ? '' : (tegn === 'o' || tegn === 'r' ? 'myk' : 'hard')) +
+    (steg % 4 === 0 ? ' slag' : '');
+}
+
+/* Rutenettet viser barnet hva appen faktisk hørte, og lar dem rette på det.
+   Det er både belønningen, forklaringen og verktøyet: ser de at ingen dype
+   slag ble funnet, skjønner de av seg selv at de må si BDUM kraftigere — og
+   imens kan de bare trykke inn kicken der den skulle vært. */
 function beatSvarHtml() {
   var r = ui.beatSvar;
   if (!r) {
@@ -337,19 +345,26 @@ function beatSvarHtml() {
     Motor.BEATS.forEach(function (b) { if (b.id === id) def = b; });
     var spor = r.spor[id], celler = '';
     for (var i = 0; i < 16; i++) {
-      var tegn = spor.charAt(i);
-      celler += '<i class="' + (tegn === '.' ? '' : (tegn === 'o' || tegn === 'r' ? 'myk' : 'hard')) +
-        (i % 4 === 0 ? ' slag' : '') + '"></i>';
+      celler += '<i class="' + celleKlasse(spor.charAt(i), i) +
+        '" data-h="beatCelle" data-id="' + id + '" data-s="' + i + '"></i>';
     }
     return '<div class="bpRad" style="--hue:' + def.hue + '">' +
       '<span class="bpNavn">' + def.emoji + '</span>' +
       '<div class="bpCeller">' + celler + '</div></div>';
   }).join('');
 
+  // taktlysene over kartet viser hvor i runden utkastet er akkurat nå
+  var lys = '<div class="steglys iOpptak">';
+  for (var k = 0; k < Motor.STEG; k++) {
+    lys += '<i class="' + (k % 4 === 0 ? 'slag' : '') + '" style="--h:' + stegHue(k) + '"></i>';
+  }
+  lys += '</div>';
+
   return '<div class="beatsvar">' +
-    '<h1>BEATEN DIN</h1>' +
+    '<h1>BEATEN DIN</h1>' + lys +
     '<div class="bpRutenett">' + rader + '</div>' +
-    '<p>Jeg hørte <b>' + r.slagFunnet + ' slag</b> i ' + r.takter + ' runder.</p>' +
+    '<p>Jeg hørte <b>' + r.slagFunnet + ' slag</b> i ' + r.takter + ' runder. ' +
+    'Trykk på rutene for å legge til eller ta bort slag.</p>' +
     '<div class="knapperad">' +
     '<button class="sekundaer" data-h="omigjenBeat">↺ PRØV IGJEN</button>' +
     '<button class="hoved" data-h="bevarBeat">BRUK BEATEN ✓</button>' +
@@ -555,6 +570,7 @@ function stoppOpptak() {
   if (ui.beatModus) {
     ui.beatSvar = buf ? Analyse.tilBeat(buf, Motor.bpm) : null;
     ui.opptak = 'beatsvar';
+    if (ui.beatSvar) startUtkast();
     tegnOpptak();
     if (!ui.beatSvar) toast('Jeg hørte for få slag');
     return;
@@ -584,9 +600,70 @@ function stoppOpptak() {
   Motor.prov(buf, 'ren');
 }
 
+/* ---------- redigering av kartet ---------- */
+
+/* Utkastet spiller mens barnet redigerer, så hver rute de trykker på høres med
+   én gang og i sammenheng. Å vise en stille tegning og først spille den av
+   etterpå ville gjort dette til en gjettelek. */
+function startUtkast() {
+  ui.beatFor = {
+    grunnbeat: Motor.grunnbeat.id,
+    paa: Motor.plasser.map(function (p) { return { id: p.id, paa: p.paa }; })
+  };
+  skrivUtkast();
+  /* Alle trommemonstrene skrus på mens de redigerer, ellers ville en rute de
+     trykker på være stum fordi monsteret tilfeldigvis sto av. KOSMISK holdes
+     utenfor — den er et langt akkordteppe, ikke et slag i rutenettet. */
+  Motor.plasser.forEach(function (p) {
+    if (p.kind === 'trommer' && p.id !== 'kosmisk') p.paa = true;
+  });
+  Motor.sikreKjeder();
+  Motor.spill();
+}
+
+function skrivUtkast() {
+  Motor.leggTilGrunnbeat({
+    id: UTKAST_ID, navn: 'UTKAST', emoji: '🎙️', bpm: Motor.bpm, spor: ui.beatSvar.spor
+  });
+  Motor.settGrunnbeat(UTKAST_ID, false);
+}
+
+function avsluttUtkast(bevar) {
+  if (!ui.beatFor) return;
+  if (!bevar) {
+    Motor.settGrunnbeat(ui.beatFor.grunnbeat, false);
+    ui.beatFor.paa.forEach(function (o) {
+      var p = finnPlass(o.id);
+      if (p) p.paa = o.paa;
+    });
+  }
+  Motor.fjernGrunnbeat(UTKAST_ID);
+  ui.beatFor = null;
+}
+
+function beatCelle(el) {
+  var r = ui.beatSvar;
+  if (!r) return;
+  var id = el.dataset.id, steg = parseInt(el.dataset.s, 10);
+  var spor = r.spor[id], tegn = spor.charAt(steg);
+  /* Ett trykk gir alltid av eller på. Et mykt/hardt kretsløp ville vært mer
+     uttrykksfullt, men da måtte en sjuåring trykke to ganger for å skru av
+     noe — og det er den handlingen de gjør oftest. */
+  var ny = tegn === '.' ? (id === 'rare' ? 'k' : 'x') : '.';
+  r.spor[id] = spor.slice(0, steg) + ny + spor.slice(steg + 1);
+  Analyse.utled(r.spor);        // klapp, bass og blipp følger med på flyttingen
+  skrivUtkast();
+  el.className = celleKlasse(ny, steg);
+  if (ny !== '.') {
+    var p = finnPlass(id);
+    if (p) Motor.smak(p);       // hør slaget med det samme, ikke først neste runde
+  }
+}
+
 function bevarBeat() {
   var r = ui.beatSvar;
   if (!r) return;
+  avsluttUtkast(true);
   S.egenBeat = {
     id: EGEN_ID, navn: 'MIN BEAT', emoji: '⭐',
     bpm: Motor.bpm, spor: r.spor
@@ -767,6 +844,7 @@ var handlinger = {
   grunnbeat: function (el) { byttGrunnbeat(el.dataset.id); },
   transport: transport,
   tilBrett: function () {
+    avsluttUtkast(false);
     avbrytOpptak();
     ui.nyLyd = null;
     ui.beatModus = false;
@@ -775,8 +853,9 @@ var handlinger = {
   },
   tilOpptak: function () { ui.beatModus = false; tilOpptak(); },
   lagEgenBeat: function () { ui.beatModus = true; tilOpptak(); },
-  omigjenBeat: function () { ui.beatSvar = null; tilOpptak(); },
+  omigjenBeat: function () { avsluttUtkast(false); ui.beatSvar = null; tilOpptak(); },
   bevarBeat: bevarBeat,
+  beatCelle: function (el) { beatCelle(el); },
   prov: function () { ui.opptak = 'klar'; tilOpptak(); },
   startOpptak: startOpptak,
   stoppOpptak: stoppOpptak,
