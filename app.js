@@ -3,7 +3,7 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v7';
+var VERSJON = 'v8';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 8;
 var EKSPORT_TAKTER = 8;
@@ -1061,6 +1061,18 @@ function oppstart() {
   Visuell.bakgrunn(E('bg'));
   vis('start');
   if ('serviceWorker' in navigator) {
+    /* Hadde siden allerede en service worker da den startet, og en NY tar over
+       underveis, betyr det at en oppdatering nettopp er installert. Da lastes
+       siden en gang, sa barna far den nye utgaven uten a vite at det finnes noe
+       som heter en versjon. Forste besok har ingen gammel arbeider a bytte fra,
+       og skal ikke laste pa nytt. */
+    var haddeArbeider = !!navigator.serviceWorker.controller;
+    var harLastet = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!haddeArbeider || harLastet) return;
+      harLastet = true;
+      location.reload();
+    });
     navigator.serviceWorker.register('./sw.js').catch(function () {});
   }
 }
