@@ -626,6 +626,413 @@ var Motor = (function () {
     });
   }
 
+  /* ---------- DRAGEHULE: store trommer i en hule full av ild ---------- */
+
+  function taiko(c, t, ut, v) {
+    fall(c, t, ut, v * 0.95, 95, 52, 0.1, 0.7);
+    stoyStot(c, t, ut, v * 0.35, 'lowpass', 700, 0, 0.25);     // skinnet som dirrer
+    stoyStot(c, t, ut, v * 0.15, 'bandpass', 2200, 1, 0.02);   // køllen
+  }
+
+  function skjold(c, t, ut, v) {
+    // et sverd mot et skjold: metallklang med en støyhale
+    stoyStot(c, t, ut, v * 0.5, 'bandpass', 1900, 2.5, 0.18);
+    [340, 523, 767].forEach(function (hz) { tone(c, t, ut, 'square', hz, v * 0.05, 0.001, 0.12); });
+    stoyStot(c, t, ut, v * 0.3, 'highpass', 3000, 0, 0.06);
+  }
+
+  function glor(c, t, ut, v) {
+    // gnister fra bålet: noen bittesmå klikk på tilfeldige steder
+    for (var i = 0; i < 4; i++) {
+      var tt = t + Math.random() * 0.07;
+      stoyStot(c, tt, ut, v * (0.3 + Math.random() * 0.35), 'highpass', 4000 + Math.random() * 3000, 0, 0.006);
+    }
+  }
+
+  function vingeslag(c, t, ut, v) {
+    [0, 0.14].forEach(function (fra) {
+      var s = stoyKilde(c, t + fra, 0.14), f = c.createBiquadFilter(), g = hylster(c, t + fra, v * 1.5, 0.03, 0.09);
+      f.type = 'bandpass'; f.Q.value = 1.2;
+      f.frequency.setValueAtTime(250, t + fra);
+      f.frequency.exponentialRampToValueAtTime(900, t + fra + 0.1);
+      s.connect(f); f.connect(g); g.connect(ut); s.stop(t + fra + 0.14);
+    });
+  }
+
+  function ildpust(c, t, ut, v) {
+    // et sus som åpner seg: filteret går opp mens flammen kommer, og ned igjen
+    var s = stoyKilde(c, t, 1.1), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'lowpass'; f.Q.value = 2;
+    f.frequency.setValueAtTime(300, t);
+    f.frequency.exponentialRampToValueAtTime(3500, t + 0.5);
+    f.frequency.exponentialRampToValueAtTime(600, t + 1.0);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(v * 0.8, t + 0.25);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.05);
+    s.connect(f); f.connect(g); g.connect(ut); s.stop(t + 1.1);
+  }
+
+  function horn(c, t, ut, v, hz, lengde) {
+    // messing: sagtann der filteret åpner seg i anslaget, som når en blåser tar i
+    var o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter();
+    var g = holdt(c, t, v * 0.14, 0.06, lengde * 0.9, 0.2);
+    o.type = 'sawtooth'; o2.type = 'sawtooth';
+    o.frequency.value = hz; o2.frequency.value = hz * 1.004;
+    f.type = 'lowpass'; f.Q.value = 1.5;
+    f.frequency.setValueAtTime(hz * 1.5, t);
+    f.frequency.linearRampToValueAtTime(hz * 5, t + 0.12);
+    o.connect(f); o2.connect(f); f.connect(g); g.connect(ut);
+    o.start(t); o2.start(t); o.stop(g.slutt); o2.stop(g.slutt);
+  }
+
+  function brumm(c, t, ut, v, hz, lengde) {
+    var o = c.createOscillator(), o2 = c.createOscillator(), f = c.createBiquadFilter();
+    var g = holdt(c, t, v * 0.16, 0.2, lengde * 0.9, 0.3);
+    o.type = 'sawtooth'; o.frequency.value = hz;
+    o2.type = 'sawtooth'; o2.frequency.value = hz * 2.003;
+    f.type = 'lowpass'; f.frequency.value = 420;
+    o.connect(f); o2.connect(f); f.connect(g); g.connect(ut);
+    o.start(t); o2.start(t); o.stop(g.slutt); o2.stop(g.slutt);
+  }
+
+  /* ---------- FABRIKK: robotene jobber i takt ---------- */
+
+  function hammer(c, t, ut, v) {
+    fall(c, t, ut, v * 0.95, 130, 48, 0.09, 0.35);
+    tone(c, t, ut, 'triangle', 2350, v * 0.18, 0.001, 0.12);    // «tink» fra ambolten
+    tone(c, t, ut, 'sine', 3480, v * 0.08, 0.001, 0.08);
+  }
+
+  function damp(c, t, ut, v) {
+    // trykkluft: et kort psst som faller fort, med et dunk under
+    var s = stoyKilde(c, t, 0.2), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'highpass'; f.frequency.value = 3500;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(v * 0.55, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(v * 0.12, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+    s.connect(f); f.connect(g); g.connect(ut); s.stop(t + 0.2);
+    fall(c, t, ut, v * 0.35, 190, 120, 0.04, 0.1);
+  }
+
+  function tannhjul(c, t, ut, v) {
+    tone(c, t, ut, 'square', v > 0.9 ? 3100 : 2600, v * 0.16, 0.0005, 0.012);
+    stoyStot(c, t, ut, v * 0.35, 'highpass', 6000, 0, 0.015);
+  }
+
+  function wahbass(c, t, ut, v, hz, lengde) {
+    // funkbass: filteret feier opp og ned igjen — «wah»
+    var o = c.createOscillator(), f = c.createBiquadFilter();
+    var g = holdt(c, t, v * 1.1, 0.005, lengde * 0.8, 0.06);
+    o.type = 'sawtooth'; o.frequency.value = hz;
+    f.type = 'bandpass'; f.Q.value = 5;
+    f.frequency.setValueAtTime(hz * 2, t);
+    f.frequency.exponentialRampToValueAtTime(hz * 10, t + 0.08);
+    f.frequency.exponentialRampToValueAtTime(hz * 3, t + 0.22);
+    o.connect(f); f.connect(g); g.connect(ut);
+    o.start(t); o.stop(g.slutt);
+  }
+
+  function ambolt(c, t, ut, v, hz) {
+    tone(c, t, ut, 'sine', hz, v * 0.18, 0.001, 0.6);
+    tone(c, t, ut, 'sine', hz * 2.76, v * 0.08, 0.001, 0.25);
+    tone(c, t, ut, 'sine', hz * 5.4, v * 0.04, 0.001, 0.1);
+  }
+
+  function pratebot(c, t, ut, v, hz, lengde) {
+    /* En robot som snakker: firkanttonen går gjennom to «munnformer» (filtre
+       på vokalfrekvenser) som bytter midt i tonen — o blir til i, «bo-ip». */
+    var o = c.createOscillator(), f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter();
+    var g = holdt(c, t, v * 0.5, 0.01, lengde * 0.85, 0.05);
+    o.type = 'square'; o.frequency.value = hz;
+    f1.type = 'bandpass'; f1.Q.value = 7; f2.type = 'bandpass'; f2.Q.value = 9;
+    f1.frequency.setValueAtTime(500, t); f2.frequency.setValueAtTime(900, t);
+    f1.frequency.setValueAtTime(300, t + lengde * 0.45); f2.frequency.setValueAtTime(2300, t + lengde * 0.45);
+    o.connect(f1); o.connect(f2); f1.connect(g); f2.connect(g); g.connect(ut);
+    o.start(t); o.stop(g.slutt);
+  }
+
+  function floyte(c, t, ut, v, hz, lengde) {
+    // dampfløyta: to toner som ikke helt stemmer, og luft oppå
+    var g = holdt(c, t, v * 0.09, 0.06, lengde * 0.9, 0.3);
+    [1, 1.19].forEach(function (k) {
+      var o = c.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(hz * k * 0.9, t);
+      o.frequency.exponentialRampToValueAtTime(hz * k, t + 0.12);
+      o.connect(g); o.start(t); o.stop(g.slutt);
+    });
+    g.connect(ut);
+    stoyStot(c, t, ut, v * 0.06, 'bandpass', hz * 2, 3, lengde * 0.8);
+  }
+
+  /* ---------- GODTELAND: alt spretter ---------- */
+
+  function sprett(c, t, ut, v) {
+    fall(c, t, ut, v * 0.9, 180, 52, 0.08, 0.3);
+    var o = tone(c, t, ut, 'sine', 900, v * 0.06, 0.002, 0.12);    // «boing» oppå
+    o.frequency.setValueAtTime(900, t);
+    o.frequency.exponentialRampToValueAtTime(300, t + 0.12);
+  }
+
+  function knips(c, t, ut, v) {
+    stoyStot(c, t, ut, v * 1.0, 'bandpass', 2300, 2.2, 0.035);
+    stoyStot(c, t + 0.004, ut, v * 0.3, 'highpass', 5000, 0, 0.02);
+  }
+
+  var DRYS = [1396.9, 1568, 1760, 2093, 2349.3];      // F-dur pentaton, høyt oppe
+  function drys(c, t, ut, v) {
+    // strøssel: en tilfeldig liten tone fra skalaen hver gang, så det glitrer
+    var hz = DRYS[Math.floor(Math.random() * DRYS.length)];
+    tone(c, t, ut, 'sine', hz, v * 0.22, 0.001, 0.09);
+    tone(c, t + 0.03, ut, 'sine', hz * 1.5, v * 0.1, 0.001, 0.06);
+  }
+
+  function spilledase(c, t, ut, v, hz) {
+    tone(c, t, ut, 'sine', hz, v * 0.18, 0.001, 0.7);
+    tone(c, t, ut, 'sine', hz * 3, v * 0.05, 0.001, 0.2);
+    tone(c, t, ut, 'sine', hz * 5.4, v * 0.02, 0.001, 0.08);
+  }
+
+  function tyggis(c, t, ut, v, hz, lengde) {
+    // tyggegummibass: hver tone spretter ned på plass
+    var o = c.createOscillator(), f = c.createBiquadFilter();
+    var g = holdt(c, t, v * 0.22, 0.004, lengde * 0.8, 0.05);
+    o.type = 'square';
+    o.frequency.setValueAtTime(hz * 1.5, t);
+    o.frequency.exponentialRampToValueAtTime(hz, t + 0.05);
+    f.type = 'lowpass'; f.frequency.value = 1200;
+    o.connect(f); f.connect(g); g.connect(ut);
+    o.start(t); o.stop(g.slutt);
+  }
+
+  function pipedyr(c, t, ut, v) {
+    [0, 0.16].forEach(function (fra) {
+      var o = tone(c, t + fra, ut, 'sine', 900, v * 0.24, 0.005, 0.11);
+      o.frequency.setValueAtTime(900, t + fra);
+      o.frequency.linearRampToValueAtTime(1600, t + fra + 0.05);
+      o.frequency.linearRampToValueAtTime(1000, t + fra + 0.11);
+    });
+  }
+
+  function popp(c, t, ut, v) {
+    var o = tone(c, t, ut, 'sine', 900, v * 0.3, 0.001, 0.05);
+    o.frequency.setValueAtTime(900, t);
+    o.frequency.exponentialRampToValueAtTime(180, t + 0.04);
+  }
+
+  /* ---------- DINO: det rister i bakken ---------- */
+
+  function tramp(c, t, ut, v) {
+    fall(c, t, ut, v, 80, 32, 0.15, 0.8);
+    stoyStot(c, t, ut, v * 0.5, 'lowpass', 180, 0, 0.3);
+    stoyStot(c, t, ut, v * 0.15, 'bandpass', 900, 1, 0.04);    // så den høres på nettbrett
+  }
+
+  function stein(c, t, ut, v) {
+    [0, 0.012].forEach(function (fra, i) {
+      stoyStot(c, t + fra, ut, v * (i ? 1.2 : 1.8), 'bandpass', 1300 + i * 900, 3, 0.03);
+    });
+    tone(c, t, ut, 'triangle', 610, v * 0.25, 0.0005, 0.03);
+  }
+
+  function froRasle(c, t, ut, v) {
+    var s = stoyKilde(c, t, 0.12), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'bandpass'; f.frequency.value = 4500; f.Q.value = 1.2;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(v * 0.55, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    s.connect(f); f.connect(g); g.connect(ut); s.stop(t + 0.12);
+  }
+
+  function knokkel(c, t, ut, v, hz) {
+    // xylofon av bein: hul trekant, kort, med et tørt klikk
+    tone(c, t, ut, 'triangle', hz, v * 0.25, 0.001, 0.2);
+    tone(c, t, ut, 'sine', hz * 3.9, v * 0.06, 0.001, 0.03);
+    stoyStot(c, t, ut, v * 0.08, 'bandpass', Math.min(hz * 6, 9000), 2, 0.01);
+  }
+
+  function urhorn(c, t, ut, v, hz, lengde) {
+    // didgeridoo-aktig: munnformen vugger fram og tilbake mens tonen står
+    var o = c.createOscillator(), f = c.createBiquadFilter(), lfo = c.createOscillator(), dybde = c.createGain();
+    var g = holdt(c, t, v * 0.9, 0.1, lengde * 0.9, 0.2);
+    o.type = 'sawtooth'; o.frequency.value = hz;
+    f.type = 'bandpass'; f.Q.value = 4; f.frequency.value = 650;
+    lfo.frequency.value = 3.5; dybde.gain.value = 250;
+    lfo.connect(dybde); dybde.connect(f.frequency);
+    o.connect(f); f.connect(g); g.connect(ut);
+    o.start(t); lfo.start(t); o.stop(g.slutt); lfo.stop(g.slutt);
+  }
+
+  function vulkan(c, t, ut, v) {
+    var s = stoyKilde(c, t, 1.8), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'lowpass'; f.Q.value = 1;
+    f.frequency.setValueAtTime(140, t);
+    f.frequency.exponentialRampToValueAtTime(60, t + 1.6);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(v * 2, t + 0.4);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.7);
+    s.connect(f); f.connect(g); g.connect(ut); s.stop(t + 1.8);
+    for (var i = 0; i < 3; i++) {       // steiner som spretter
+      stoyStot(c, t + 0.3 + Math.random() * 0.9, ut, v * 0.25, 'bandpass', 700 + Math.random() * 600, 3, 0.03);
+    }
+  }
+
+  function trex(c, t, ut, v) {
+    /* Brølet: en dyp sagtann som skjelver, gjennom et filter som åpner seg —
+       og støy oppå for at det skal skrape i halsen. */
+    var o = c.createOscillator(), f = c.createBiquadFilter(), lfo = c.createOscillator(), dybde = c.createGain();
+    var g = holdt(c, t, v * 0.55, 0.08, 0.45, 0.35);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(130, t);
+    o.frequency.exponentialRampToValueAtTime(75, t + 0.8);
+    lfo.frequency.value = 28; dybde.gain.value = 14;
+    lfo.connect(dybde); dybde.connect(o.frequency);
+    f.type = 'bandpass'; f.Q.value = 2;
+    f.frequency.setValueAtTime(400, t);
+    f.frequency.linearRampToValueAtTime(900, t + 0.3);
+    f.frequency.linearRampToValueAtTime(350, t + 0.8);
+    o.connect(f); f.connect(g); g.connect(ut);
+    o.start(t); lfo.start(t); o.stop(g.slutt); lfo.stop(g.slutt);
+    stoyStot(c, t, ut, v * 0.18, 'bandpass', 1400, 1, 0.7);
+  }
+
+  /* ---------- VINTERLAND: stille, med bjeller ---------- */
+
+  function snoball(c, t, ut, v) {
+    fall(c, t, ut, v * 0.85, 110, 48, 0.1, 0.38);
+    stoyStot(c, t, ut, v * 0.25, 'lowpass', 900, 0, 0.06);
+  }
+
+  function knas(c, t, ut, v) {
+    // snø som knaser: mange små korn etter hverandre, ikke ett smell
+    for (var i = 0; i < 5; i++) {
+      var tt = t + i * 0.018 + Math.random() * 0.008;
+      stoyStot(c, tt, ut, v * (0.55 + Math.random() * 0.35), 'bandpass', 2500 + Math.random() * 2500, 1.5, 0.02);
+    }
+  }
+
+  function bjeller(c, t, ut, v) {
+    for (var i = 0; i < 3; i++) {
+      tone(c, t + Math.random() * 0.03, ut, 'sine', 5200 + Math.random() * 1600, v * 0.08, 0.001, 0.12);
+    }
+    stoyStot(c, t, ut, v * 0.3, 'highpass', 8000, 0, 0.1);
+  }
+
+  function isklokke(c, t, ut, v, hz) {
+    tone(c, t, ut, 'sine', hz, v * 0.17, 0.001, 1.0);
+    tone(c, t, ut, 'sine', hz * 2.76, v * 0.07, 0.001, 0.3);
+  }
+
+  function nordlys(c, t, ut, v, hz, lengde) {
+    var akkord = Array.isArray(hz) ? hz : [hz];
+    var g = holdt(c, t, v * 0.06, 0.5, lengde * 0.9, 0.8), f = c.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 1800;
+    f.connect(g); g.connect(ut);
+    akkord.forEach(function (grunn) {
+      [1, 1.006].forEach(function (k) {
+        var o = c.createOscillator();
+        o.type = 'triangle'; o.frequency.value = grunn * k;
+        o.connect(f); o.start(t); o.stop(g.slutt);
+      });
+    });
+  }
+
+  function isbjorn(c, t, ut, v, hz, lengde) {
+    var o = c.createOscillator(), o2 = c.createOscillator(), g2 = c.createGain(), f = c.createBiquadFilter();
+    var g = holdt(c, t, v * 0.24, 0.01, lengde * 0.9, 0.1);
+    o.type = 'sine'; o.frequency.value = hz;
+    o2.type = 'triangle'; o2.frequency.value = hz * 2; g2.gain.value = 0.3;
+    f.type = 'lowpass'; f.frequency.value = 500;
+    o.connect(f); o2.connect(g2); g2.connect(f); f.connect(g); g.connect(ut);
+    o.start(t); o2.start(t); o.stop(g.slutt); o2.stop(g.slutt);
+  }
+
+  function vind(c, t, ut, v) {
+    var s = stoyKilde(c, t, 1.6), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'bandpass'; f.Q.value = 8;
+    f.frequency.setValueAtTime(400, t);
+    f.frequency.exponentialRampToValueAtTime(1400, t + 0.7);
+    f.frequency.exponentialRampToValueAtTime(500, t + 1.5);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(v * 1.4, t + 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.55);
+    s.connect(f); f.connect(g); g.connect(ut); s.stop(t + 1.6);
+  }
+
+  /* ---------- PIRAT: sjømannssang på dekk ---------- */
+
+  function tonne(c, t, ut, v) {
+    fall(c, t, ut, v * 0.9, 140, 62, 0.06, 0.3);
+    stoyStot(c, t, ut, v * 0.3, 'bandpass', 600, 1.5, 0.06);
+  }
+
+  function kiste(c, t, ut, v) {
+    stoyStot(c, t, ut, v * 0.6, 'bandpass', 900, 1.4, 0.07);
+    fall(c, t, ut, v * 0.3, 230, 160, 0.03, 0.08, 'triangle');
+    stoyStot(c, t, ut, v * 0.25, 'highpass', 2500, 0, 0.05);
+  }
+
+  function gull(c, t, ut, v) {
+    // mynter som klirrer mot hverandre
+    for (var i = 0; i < 3; i++) {
+      tone(c, t + i * 0.016 + Math.random() * 0.01, ut, 'sine', 3800 + Math.random() * 2800, v * 0.18, 0.0005, 0.06);
+    }
+  }
+
+  function tuba(c, t, ut, v, hz, lengde) {
+    var o = c.createOscillator(), f = c.createBiquadFilter();
+    var g = holdt(c, t, v * 0.4, 0.02, lengde * 0.75, 0.06);
+    o.type = 'sawtooth'; o.frequency.value = hz;
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(400, t);
+    f.frequency.linearRampToValueAtTime(700, t + 0.05);
+    o.connect(f); f.connect(g); g.connect(ut);
+    o.start(t); o.stop(g.slutt);
+  }
+
+  function trekkspill(c, t, ut, v, hz, lengde) {
+    // to tunger per tone som ikke stemmer helt, og belgen som puster (tremolo)
+    var akkord = Array.isArray(hz) ? hz : [hz];
+    var g = holdt(c, t, v * 0.07, 0.02, lengde * 0.8, 0.06), f = c.createBiquadFilter();
+    var trem = c.createGain(), lfo = c.createOscillator(), dybde = c.createGain();
+    f.type = 'lowpass'; f.frequency.value = 2200;
+    trem.gain.value = 0.8; lfo.frequency.value = 6; dybde.gain.value = 0.2;
+    lfo.connect(dybde); dybde.connect(trem.gain);
+    f.connect(trem); trem.connect(g); g.connect(ut);
+    akkord.forEach(function (grunn) {
+      var o = c.createOscillator(), o2 = c.createOscillator();
+      o.type = 'square'; o.frequency.value = grunn;
+      o2.type = 'sawtooth'; o2.frequency.value = grunn * 1.003;
+      o.connect(f); o2.connect(f);
+      o.start(t); o2.start(t); o.stop(g.slutt); o2.stop(g.slutt);
+    });
+    lfo.start(t); lfo.stop(g.slutt);
+  }
+
+  function kanon(c, t, ut, v) {
+    fall(c, t, ut, v, 70, 30, 0.3, 1.2);
+    var s = stoyKilde(c, t, 1), f = c.createBiquadFilter(), g = hylster(c, t, v * 0.7, 0.002, 0.9);
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(900, t);
+    f.frequency.exponentialRampToValueAtTime(150, t + 0.8);
+    s.connect(f); f.connect(g); g.connect(ut); s.stop(t + 1);
+  }
+
+  function maake(c, t, ut, v) {
+    [0, 0.22].forEach(function (fra) {
+      var o = c.createOscillator(), f = c.createBiquadFilter(), g = hylster(c, t + fra, v * 0.8, 0.01, 0.17);
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(900, t + fra);
+      o.frequency.linearRampToValueAtTime(1300, t + fra + 0.05);
+      o.frequency.linearRampToValueAtTime(800, t + fra + 0.18);
+      f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 3;
+      o.connect(f); f.connect(g); g.connect(ut);
+      o.start(t + fra); o.stop(t + fra + 0.2);
+    });
+  }
+
+
   /* ---------- tonene ---------- */
 
   /* Tonene skrives som notenavn (A1, C#4, Bb3), og akkorder med pluss mellom
@@ -772,6 +1179,118 @@ var Motor = (function () {
           spor: 'E4 . . . . . . . . . . . . . . .   . . . . . . . . . . . . . . . .' },
         { id: 'flaggermus', navn: 'FLAGGERMUS', hue: 338, slag: flaggermus,
           spor: '..........x..... ...x.........x..' }
+      ]
+    },
+
+    /* ---------- andre rad ----------
+       Seks til, og de fleste har sin egen tegnestil — ikke bare egne
+       monstre, men en helt annen måte å tegne dem på. */
+    {
+      /* Tunge taikotrommer og et horn i D-moll pentaton. Episk, men ikke
+         skummelt: dragene er små og runde. */
+      id: 'drage', navn: 'DRAGER', emoji: '🐉', bpm: 84, hue: 8, tema: 'drage',
+      himmel: { sky1: 10, sky2: 35, horisont: 20, gitter: 5, vegg: 30 },
+      lyder: [
+        { id: 'taiko', navn: 'TAIKO', hue: 8, slag: taiko, start: true, spor: 'x.....x...x.x...' },
+        { id: 'skjold', navn: 'SKJOLD', hue: 200, slag: skjold, start: true, spor: '....x.......x...' },
+        { id: 'glor', navn: 'GLØR', hue: 38, slag: glor, start: true, spor: 'o.x.o.x.o.x.o.xo' },
+        { id: 'vingeslag', navn: 'VINGER', hue: 150, slag: vingeslag,
+          spor: '........x....... ................' },
+        { id: 'ildpust', navn: 'ILDPUST', hue: 20, slag: ildpust,
+          spor: '................ ........x.......' },
+        { id: 'horn', navn: 'HORN', hue: 50, slag: horn, tonal: true, lengde: 'legato', maksSteg: 8,
+          spor: 'D4 . . . A4 . . . F4 . G4 . A4 . . .   D5 . . . C5 . A4 . G4 . . . A4 . . .' },
+        { id: 'brumm', navn: 'BRUMM', hue: 280, slag: brumm, tonal: true, lengde: 'legato',
+          spor: 'D2 . . . . . . . . . . . . . . .   C2 . . . . . . . A1 . . . . . . .' }
+      ]
+    },
+    {
+      /* Funk i G-moll pentaton: hammeren er kicken, trykkluft er
+         skarptrommen, og tannhjulene tikker som hi-hat. */
+      id: 'fabrikk', navn: 'FABRIKK', emoji: '🤖', bpm: 104, hue: 150, tema: 'metall',
+      himmel: { sky1: 160, sky2: 40, horisont: 150, gitter: 45, vegg: 160 },
+      lyder: [
+        { id: 'hammer', navn: 'HAMMER', hue: 200, slag: hammer, start: true, spor: 'x.....x..x.x....' },
+        { id: 'damp', navn: 'DAMP', hue: 170, slag: damp, start: true, spor: '....x.......x...' },
+        { id: 'tannhjul', navn: 'TANNHJUL', hue: 45, slag: tannhjul, start: true, spor: 'xoxoxoxoxoxoxoxo' },
+        { id: 'wahbass', navn: 'WAHBASS', hue: 280, slag: wahbass, tonal: true, lengde: 1.5,
+          spor: 'G2 . . G2 . . Bb2 . C3 . . G2 . F2 G2 .   G2 . . G2 . . Bb2 . D3 . C3 . Bb2 . F2 .' },
+        { id: 'ambolt', navn: 'AMBOLT', hue: 10, slag: ambolt, tonal: true,
+          spor: '. . . . . . . . . . D5 . . . . .   . . . . . . . . . . F5 . . . G5 .' },
+        { id: 'pratebot', navn: 'PRATEBOT', hue: 120, slag: pratebot, tonal: true, lengde: 1.5,
+          spor: 'G4 . Bb4 . G4 . . . . . . . . . . .   C5 . Bb4 . G4 . . . . . . . . . . .' },
+        { id: 'floyte', navn: 'FLØYTE', hue: 330, slag: floyte, tonal: true, lengde: 'legato', maksSteg: 6,
+          spor: '. . . . . . . . . . . . . . . .   . . . . . . . . D5 . . . . . . .' }
+      ]
+    },
+    {
+      /* Tyggegummipop i F-dur pentaton, fort og sprettent, med spilledåse
+         som melodi og strøssel som glitrer oppå. */
+      id: 'godteland', navn: 'GODTELAND', emoji: '🍭', bpm: 124, hue: 305, tema: 'godteri',
+      himmel: { sky1: 310, sky2: 190, horisont: 330, gitter: 280, vegg: 300 },
+      lyder: [
+        { id: 'sprett', navn: 'SPRETT', hue: 330, slag: sprett, start: true, spor: 'x...x...x...x...' },
+        { id: 'knips', navn: 'KNIPS', hue: 190, slag: knips, start: true, spor: '....x.......x...' },
+        { id: 'drys', navn: 'DRYS', hue: 55, slag: drys, start: true, spor: '..x...x...x...xx' },
+        { id: 'spilledase', navn: 'SPILLEDÅSE', hue: 280, slag: spilledase, tonal: true,
+          spor: 'F5 A5 C6 A5 G5 . C6 . D6 C6 A5 . G5 . F5 .   F5 A5 C6 A5 D6 . C6 . A5 G5 F5 . G5 . . .' },
+        { id: 'tyggis', navn: 'TYGGIS', hue: 345, slag: tyggis, tonal: true, lengde: 1.5,
+          spor: 'F2 . F3 . C3 . F3 . D2 . D3 . A2 . D3 .   G2 . G3 . D3 . G3 . C3 . C3 . G2 . C3 .' },
+        { id: 'pipedyr', navn: 'PIPEDYR', hue: 100, slag: pipedyr,
+          spor: '................ ..........x.....' },
+        { id: 'popp', navn: 'POPP', hue: 25, slag: popp, spor: '.......x........ ...x.......x....' }
+      ]
+    },
+    {
+      /* Steinalder i E-moll pentaton: bakken rister, steiner slås mot
+         hverandre, og en xylofon av bein spiller melodien. */
+      id: 'dino', navn: 'DINO', emoji: '🦖', bpm: 96, hue: 30, tema: 'dino',
+      himmel: { sky1: 30, sky2: 100, horisont: 25, gitter: 80, vegg: 35 },
+      lyder: [
+        { id: 'tramp', navn: 'TRAMP', hue: 25, slag: tramp, start: true, spor: 'x.......x.......' },
+        { id: 'stein', navn: 'STEIN', hue: 200, slag: stein, start: true, spor: '....x.......x..o' },
+        { id: 'frorasle', navn: 'FRØ', hue: 90, slag: froRasle, start: true, spor: 'x.x.x.x.x.x.x.x.' },
+        { id: 'knokkel', navn: 'KNOKKEL', hue: 48, slag: knokkel, tonal: true,
+          spor: 'E5 . G5 . A5 . . . B5 . A5 . G5 . E5 .   E5 . G5 . A5 . . . D6 . B5 . A5 . . .' },
+        { id: 'urhorn', navn: 'URHORN', hue: 12, slag: urhorn, tonal: true, lengde: 'legato',
+          spor: 'E2 . . . . . . . . . . . . . . .   D2 . . . . . . . B1 . . . . . . .' },
+        { id: 'vulkan', navn: 'VULKAN', hue: 0, slag: vulkan, spor: '................ x...............' },
+        { id: 'trex', navn: 'T-REX', hue: 130, slag: trex, spor: '................ ........x.......' }
+      ]
+    },
+    {
+      /* Rolig vinternatt i D-dur pentaton: snøballer, knasende snø,
+         bjeller, og nordlyset som et teppe av akkorder. */
+      id: 'vinter', navn: 'VINTER', emoji: '❄️', bpm: 86, hue: 175, tema: 'origami',
+      himmel: { sky1: 180, sky2: 140, horisont: 190, gitter: 200, vegg: 160 },
+      lyder: [
+        { id: 'snoball', navn: 'SNØBALL', hue: 205, slag: snoball, start: true, spor: 'x......x..x.....' },
+        { id: 'knas', navn: 'KNAS', hue: 190, slag: knas, start: true, spor: '....x.......x...' },
+        { id: 'bjeller', navn: 'BJELLER', hue: 48, slag: bjeller, start: true, spor: 'x.o.x.o.x.o.x.oo' },
+        { id: 'isklokke', navn: 'ISKLOKKE', hue: 170, slag: isklokke, tonal: true,
+          spor: 'A5 . F#5 . . . E5 . D5 . . . E5 . F#5 .   A5 . B5 . . . A5 . F#5 . . . E5 . . .' },
+        { id: 'nordlys', navn: 'NORDLYS', hue: 140, slag: nordlys, tonal: true, lengde: 'legato',
+          spor: 'D3+F#3+A3+E4 . . . . . . . . . . . . . . .   B2+D3+F#3+A3 . . . . . . . A2+D3+E3+A3 . . . . . . .' },
+        { id: 'isbjorn', navn: 'ISBJØRN', hue: 220, slag: isbjorn, tonal: true, lengde: 'legato', maksSteg: 6,
+          spor: 'D2 . . . . . D2 . . . A1 . . . . .   B1 . . . . . B1 . . . A1 . . . . .' },
+        { id: 'vind', navn: 'VIND', hue: 260, slag: vind, spor: '................ ....x...........' }
+      ]
+    },
+    {
+      /* Sjømannssang i A-moll: tuba på ett og tre, trekkspill på to og fire
+         — «øm-pa». E-dur-akkorden på slutten er det som gjør det til sjørøvere. */
+      id: 'pirat', navn: 'PIRAT', emoji: '☠️', bpm: 108, hue: 240, tema: 'pirat',
+      himmel: { sky1: 215, sky2: 45, horisont: 200, gitter: 230, vegg: 210 },
+      lyder: [
+        { id: 'tonne', navn: 'TØNNE', hue: 28, slag: tonne, start: true, spor: 'x.......x.......' },
+        { id: 'kiste', navn: 'KISTE', hue: 12, slag: kiste, start: true, spor: '....x.......x...' },
+        { id: 'gull', navn: 'GULL', hue: 48, slag: gull, start: true, spor: 'x..x..x.x..x..x.' },
+        { id: 'tuba', navn: 'TUBA', hue: 270, slag: tuba, tonal: true, lengde: 2,
+          spor: 'A2 . . . . . . . E2 . . . . . . .   D2 . . . . . . . E2 . . . . . . .' },
+        { id: 'trekkspill', navn: 'TREKKSPILL', hue: 340, slag: trekkspill, tonal: true, lengde: 1.5,
+          spor: '. . . . A3+C4+E4 . . . . . . . A3+C4+E4 . . .   . . . . D4+F4+A4 . . . . . . . E4+G#4+B4 . . .' },
+        { id: 'kanon', navn: 'KANON', hue: 220, slag: kanon, spor: '................ ..............x.' },
+        { id: 'maake', navn: 'MÅKE', hue: 190, slag: maake, spor: '..........x..... ................' }
       ]
     }
   ];

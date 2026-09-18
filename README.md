@@ -27,8 +27,9 @@ endres fritt uten at trommene låter strukket, og derfor den virker offline med
 kjører nøyaktig samme kode i en `OfflineAudioContext`, så det barna hører er
 det de får i fila.
 
-**Seks beats, og hver er en hel verden.** BOOM BAP, ROMBASE, JUNGEL, HAVDYP,
-PIXEL og SPØKELSE har hver sine egne monstre, egne syntetiserte lyder, egen
+**Tolv beats, og hver er en hel verden.** BOOM BAP, ROMBASE, JUNGEL, HAVDYP,
+PIXEL, SPØKELSE, DRAGER, FABRIKK, GODTELAND, DINO, VINTER og PIRAT har hver
+sine egne monstre, egne syntetiserte lyder, egen
 toneart og eget tempo — ikke samme trommer i nytt mønster. Å bytte beat
 bytter monstrene, lydene, tempoet og fargene på himmelen på én gang, så det
 føles som å gå inn i et annet rom. Barnas egne lyder blir stående og spiller
@@ -39,15 +40,31 @@ går an å hoppe fram og tilbake.
 **Hver verden har sin toneart, og alt i den passer sammen.** Innenfor én beat
 er alle tonene valgt slik at en seksåring kan skru på alle monstrene samtidig
 uten at det skjærer: A-moll pentaton i BOOM BAP, E-moll i ROMBASE, C-dur i
-JUNGEL, D-moll i HAVDYP, G-dur i PIXEL — pentatone skalaer, der ingen to
-toner gnisser. SPØKELSE er unntaket med vilje: E harmonisk moll, der den ene
-hevede tonen (D#) gjør det skummelt, men orgelet løser seg alltid opp igjen.
+JUNGEL, D-moll i HAVDYP, G-dur i PIXEL, D-moll i DRAGER, G-moll i FABRIKK,
+F-dur i GODTELAND, E-moll i DINO, D-dur i VINTER — pentatone skalaer, der
+ingen to toner gnisser. SPØKELSE og PIRAT er unntakene med vilje: E harmonisk
+moll i spøkelseshuset, der den ene hevede tonen (D#) gjør det skummelt, og
+en E-dur-akkord i A-moll hos piratene — det er den som gjør det til en
+sjømannssang. I begge løser det seg alltid opp igjen.
 
 **Monstrene hører hjemme i sin verden.** `monsters.js` har et tema per verden
 som bestemmer hvilke kropper, øyne, munner og pynt generatoren får velge
 mellom: roboter med visir og hjul, jungeldyr med blader, maneter og
 blekkspruter, pikselmonstre som i et gammelt tv-spill, og spøkelser med
-heksehatt og selvlysende øyne. Monstre uten tema — barnas egne lyder og BOOM
+heksehatt og selvlysende øyne.
+
+**Flere verdener har sin egen tegnestil**, ikke bare egne monstre. PIXEL
+tegner i ruter som et gammelt tv-spill, og i andre rad har nesten hver verden
+sin egen måte å tegne på (`STILER` i `monsters.js`): klistremerker med hvit
+kant for drager og pirater, blankt metall med fargeforløp for robotene,
+glinsende 3D-godteri, hulemalerier av dinosaurer på en steinflis, og origami
+for vinterdyrene der hver flate brettes i trekanter med egen lysstyrke. Hver
+stil er sin egen lille tegner, men alle legger øynene i `oye`-grupper og
+munnen i en `munn`-gruppe, så de blunker og synger som alle andre monstre.
+Fargeforløp og klipping trenger id-er som er unike på siden; hver tegning får
+et prefiks laget av nøkkelen.
+
+Monstre uten tema — barnas egne lyder og BOOM
 BAP — trekker nøyaktig like mange terningkast som før, så ingen eksisterende
 figur har forandret seg. De nye kroppsformene står derfor utenfor `FORMER`.
 
@@ -141,6 +158,10 @@ console.log(await maal());
 En ny effekt legges i `EFFEKTER`; den trenger enten en `rate`
 (avspillingsfart), en `bygg`-funksjon som returnerer `{ inn, ut }`, eller begge.
 
+En helt ny tegnestil legges i `STILER`: en funksjon `(rnd, hue, f, uid)` som
+returnerer hele SVG-en. Bruk bare `rnd` til tilfeldighet, så samme monster
+ser likt ut hver gang, og prefiks alle id-er med `uid`.
+
 Et nytt monstertema legges i `TEMA` i `monsters.js`: lister over kropper,
 pynt, øyne, munner og mønstre å velge mellom. En ny kroppsform må returnere
 `deler` (SVG-tekst), ytterkantene `topp`/`bunn`/`halvbred`, og en `ansikt`-boks
@@ -154,7 +175,8 @@ respektere taket `HIMMEL`. Slik sjekker du at ingenting blir klippet:
 ```js
 const d = document.createElement('div');
 document.body.appendChild(d);
-for (const tema of ['rom', 'jungel', 'hav', 'pixel', 'gross', null]) {
+for (const tema of ['rom', 'jungel', 'hav', 'pixel', 'gross', 'drage', 'pirat',
+                    'metall', 'godteri', 'dino', 'origami', null]) {
   for (let i = 0; i < 400; i++) {
     d.innerHTML = Monstre.tegn('t' + i, Monstre.nyHue(i), tema ? { tema } : null);
     const b = d.querySelector('svg').getBBox();

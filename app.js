@@ -3,7 +3,7 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v10';
+var VERSJON = 'v11';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 200;
 var VIS_FORST = 23;             // med TA OPP blir det fire hele rader på et nettbrett

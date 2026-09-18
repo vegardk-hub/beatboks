@@ -904,6 +904,876 @@ var Monstre = (function () {
       under + kropp + '<g class="oye">' + oye + '</g><g class="munn">' + munn + '</g></svg>';
   }
 
+  /* ---------- tegnestilene ----------
+
+     PIXEL viste at en helt annen MÅTE å tegne på gjør mer enn nye former i
+     samme strek. Hver stil under er sin egen lille tegner: klistremerker med
+     hvit kant (drager og pirater), blankt metall (roboter), glinsende godteri
+     i 3D, hulemalerier av dinosaurer, og origami av papir (vinterdyr).
+
+     Felles for alle: tegneflaten er 0–100, øynene ligger i grupper med
+     klassen «oye» (så de blunker) og munnen i én gruppe «munn» (så den
+     synger). Fargeforløp trenger id-er som er unike på siden, derfor får
+     hver tegning et eget prefiks laget av nøkkelen. */
+
+  var MORK = '#1d1030';
+
+  function ellD(cx, cy, rx, ry) {
+    return 'M' + P(cx - rx, cy) + 'A' + tall(rx) + ' ' + tall(ry) + ' 0 1 0 ' + P(cx + rx, cy) +
+      'A' + tall(rx) + ' ' + tall(ry) + ' 0 1 0 ' + P(cx - rx, cy) + 'Z';
+  }
+
+  function mangekant(pkt) {
+    return 'M' + pkt.map(function (p) { return P(p[0], p[1]); }).join('L') + 'Z';
+  }
+
+  /* En kurve som smalner av — horn, haler, armer. Tegnes som en flate og
+     ikke som en strek, så den kan få kant og klistremerkeomriss som resten. */
+  function tykkKurve(p0, p1, p2, w0, w1) {
+    var v = [], h = [];
+    for (var i = 0; i <= 10; i++) {
+      var t = i / 10, u = 1 - t;
+      var x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0];
+      var y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1];
+      var dx = 2 * u * (p1[0] - p0[0]) + 2 * t * (p2[0] - p1[0]);
+      var dy = 2 * u * (p1[1] - p0[1]) + 2 * t * (p2[1] - p1[1]);
+      var l = Math.sqrt(dx * dx + dy * dy) || 1, w = w0 + (w1 - w0) * t;
+      v.push([x - dy / l * w, y + dx / l * w]);
+      h.push([x + dy / l * w, y - dx / l * w]);
+    }
+    return mangekant(v.concat(h.reverse()));
+  }
+
+  function svg(innhold, ekstra) {
+    return '<svg class="mstr" viewBox="0 0 100 100" aria-hidden="true"' + (ekstra || '') + '>' +
+      innhold + '</svg>';
+  }
+
+  /* ---------- klistremerker ---------- */
+
+  /* Hele figuren tegnes først i hvitt med tykk strek, så i farger oppå.
+     Da får den en hvit kant rundt hele silhuetten, som et klistremerke — og
+     delene flyter sammen i ett omriss i stedet for å ha kant hver for seg. */
+  function klistremerke(deler) {
+    var s = '<g fill="#fff" stroke="#fff" stroke-width="8" stroke-linejoin="round">';
+    deler.forEach(function (d) { s += '<path d="' + d.d + '"/>'; });
+    s += '</g>';
+    deler.forEach(function (d) {
+      s += '<path d="' + d.d + '" fill="' + d.fyll + '" stroke="' + MORK +
+        '" stroke-width="2.6" stroke-linejoin="round"/>' + (d.ekstra || '');
+    });
+    return s;
+  }
+
+  function tegneserieOye(x, y, r, iris, blikk, slisse) {
+    var px = x + blikk * r * 0.22;
+    return '<g class="oye"><circle cx="' + tall(x) + '" cy="' + tall(y) + '" r="' + tall(r) +
+      '" fill="#fff" stroke="' + MORK + '" stroke-width="2.2"/>' +
+      sirkel(px, y + r * 0.06, r * 0.62, iris) +
+      (slisse
+        ? '<ellipse cx="' + tall(px) + '" cy="' + tall(y + r * 0.06) + '" rx="' + tall(r * 0.15) +
+          '" ry="' + tall(r * 0.5) + '" fill="' + MORK + '"/>'
+        : sirkel(px, y + r * 0.06, r * 0.32, MORK)) +
+      sirkel(px - r * 0.24, y - r * 0.22, r * 0.2, '#fff') + '</g>';
+  }
+
+  function tegnDrage(rnd, hue) {
+    var hud = farge(hue, 55, 78), lys = farge(hue, 72, 80);
+    var mage = farge((hue + 45) % 360, 80, 85);
+    var vinge = farge((hue + 25) % 360, 42, 72), hornF = 'hsl(42 75% 86%)';
+    var hodeR = mellomtall(rnd, 19, 22.5), hodeY = mellomtall(rnd, 38, 42);
+    var kRx = mellomtall(rnd, 16, 20), kRy = mellomtall(rnd, 12, 14.5), kY = 83 - kRy;
+    var side = rnd() > 0.5 ? 1 : -1;
+    var deler = [], i;
+
+    // vinger bakerst, med to «fingerbein» i hver
+    if (rnd() > 0.2) {
+      var spenn = mellomtall(rnd, 18, 24);
+      [-1, 1].forEach(function (s) {
+        var ax = 50 + s * kRx * 0.45, ay = kY - kRy * 0.4;
+        var tx = Math.max(8, Math.min(92, 50 + s * (kRx + spenn)));
+        var ty = Math.max(10, ay - mellomtall(rnd, 24, 32));
+        var d = 'M' + P(ax, ay) + 'Q' + P(ax + s * 6, ty - 2) + ' ' + P(tx, ty);
+        var fra = [tx, ty + 2], til = [ax + s * 3, ay + 9], ben = '';
+        for (var n = 1; n <= 3; n++) {
+          var p1 = paaVei(fra, til, n / 3), pm = paaVei(fra, til, (n - 0.5) / 3);
+          d += 'Q' + P(pm[0], pm[1] - 6) + ' ' + P(p1[0], p1[1]);
+          if (n < 3) ben += '<path d="M' + P(ax, ay) + 'L' + P(p1[0], p1[1]) + '" stroke="' + MORK +
+            '" stroke-width="1.3" opacity="0.45"/>';
+        }
+        deler.push({ d: d + 'Z', fyll: vinge, ekstra: ben });
+      });
+    }
+
+    // halen svinger ut til siden og ender i en pilspiss
+    var ende = [50 + side * mellomtall(rnd, 33, 38), kY - mellomtall(rnd, 8, 16)];
+    deler.push({ d: tykkKurve([50 + side * kRx * 0.6, kY + kRy * 0.4], [50 + side * 40, kY + kRy + 2], ende, 5.5, 1.6), fyll: hud });
+    deler.push({
+      d: 'M' + P(ende[0] - 5, ende[1] + 1) + 'L' + P(ende[0], ende[1] - 7) + 'L' + P(ende[0] + 5, ende[1] + 1) +
+        'Q' + P(ende[0], ende[1] - 1) + ' ' + P(ende[0] - 5, ende[1] + 1) + 'Z',
+      fyll: vinge
+    });
+
+    // kropp med lys mage og striper
+    var magen = '<ellipse cx="50" cy="' + tall(kY + 2) + '" rx="' + tall(kRx * 0.6) + '" ry="' +
+      tall(kRy * 0.72) + '" fill="' + mage + '"/>';
+    for (i = -1; i <= 1; i++) {
+      magen += '<path d="M' + P(50 - kRx * 0.45, kY + 2 + i * 4.5) + 'Q' + P(50, kY + 4 + i * 4.5) + ' ' +
+        P(50 + kRx * 0.45, kY + 2 + i * 4.5) + '" fill="none" stroke="' + MORK + '" stroke-width="1.2" opacity="0.3"/>';
+    }
+    deler.push({ d: ellD(50, kY, kRx, kRy), fyll: hud, ekstra: magen });
+    [-1, 1].forEach(function (s) {
+      var fx = 50 + s * kRx * 0.55, fy = kY + kRy - 1;
+      var klor = '';
+      for (var k = -1; k <= 1; k++) klor += sirkel(fx + k * 2.6, fy + 3, 0.9, '#fff');
+      deler.push({ d: ellD(fx, fy, 6.5, 4.2), fyll: hud, ekstra: klor });
+    });
+
+    // horn og pigger bak hodet, så hodet dekker festet
+    var hornStil = velg(rnd, ['boyd', 'rett', 'sma', 'boyd']);
+    [-1, 1].forEach(function (s) {
+      var bx = 50 + s * hodeR * 0.5, by = hodeY - hodeR * 0.6;
+      var lengde = hornStil === 'sma' ? 8 : mellomtall(rnd, 12, 17);
+      var tx = 50 + s * (hodeR * 0.5 + (hornStil === 'rett' ? 3 : 9)), ty = Math.max(8, by - lengde);
+      var kx = hornStil === 'boyd' ? bx + s * 10 : (bx + tx) / 2;
+      deler.push({ d: tykkKurve([bx, by], [kx, (by + ty) / 2], [tx, ty], 4, 0.7), fyll: hornF });
+    });
+    if (rnd() > 0.35) {
+      for (i = -1; i <= 1; i++) {
+        var px = 50 + i * 6.5, py = hodeY - hodeR * 0.84 + Math.abs(i) * 1.5;
+        deler.push({ d: mangekant([[px - 3.5, py + 3], [px, py - (i === 0 ? 9 : 6.5)], [px + 3.5, py + 3]]), fyll: vinge });
+      }
+    }
+
+    var glans = '<ellipse cx="' + tall(50 - hodeR * 0.45) + '" cy="' + tall(hodeY - hodeR * 0.5) + '" rx="' +
+      tall(hodeR * 0.26) + '" ry="' + tall(hodeR * 0.14) + '" fill="#fff" opacity="0.45"/>';
+    if (rnd() > 0.5) {
+      for (i = 0; i < 3; i++) {
+        glans += sirkel(50 + hodeR * (0.2 + i * 0.22), hodeY - hodeR * (0.62 - i * 0.12), 1.6 + i * 0.4, farge(hue, 42, 70));
+      }
+    }
+    deler.push({ d: ellD(50, hodeY, hodeR * 1.05, hodeR * 0.92), fyll: hud, ekstra: glans });
+    var sY = hodeY + hodeR * 0.48;
+    var nese = '<ellipse cx="46" cy="' + tall(sY - hodeR * 0.14) + '" rx="1.4" ry="2" fill="' + MORK + '"/>' +
+      '<ellipse cx="54" cy="' + tall(sY - hodeR * 0.14) + '" rx="1.4" ry="2" fill="' + MORK + '"/>';
+    deler.push({ d: ellD(50, sY, hodeR * 0.66, hodeR * 0.4), fyll: lys, ekstra: nese });
+
+    var s2 = klistremerke(deler);
+    // rødme i kinnene
+    [-1, 1].forEach(function (s) {
+      s2 += '<ellipse cx="' + tall(50 + s * hodeR * 0.74) + '" cy="' + tall(hodeY + hodeR * 0.2) +
+        '" rx="3.4" ry="2" fill="#ff5c9a" opacity="0.5"/>';
+    });
+
+    var iris = velg(rnd, ['hsl(48 100% 55%)', 'hsl(95 90% 48%)', 'hsl(28 100% 55%)', 'hsl(190 95% 50%)']);
+    var slisse = rnd() > 0.4, blikk = (rnd() - 0.5) * 1.6;
+    var antall = velg(rnd, [2, 2, 2, 2, 1, 3]), oyeY = hodeY - hodeR * 0.18;
+    var steder = antall === 1 ? [[50, oyeY, hodeR * 0.4]]
+      : (antall === 2 ? [[50 - hodeR * 0.45, oyeY, hodeR * 0.3], [50 + hodeR * 0.45, oyeY, hodeR * 0.3]]
+        : [[50 - hodeR * 0.55, oyeY, hodeR * 0.24], [50, oyeY - hodeR * 0.18, hodeR * 0.24], [50 + hodeR * 0.55, oyeY, hodeR * 0.24]]);
+    var sint = rnd() > 0.6;
+    steder.forEach(function (p) {
+      s2 += tegneserieOye(p[0], p[1], p[2], iris, blikk, slisse);
+    });
+    if (sint && antall === 2) {
+      // bestemte bryn, ikke sinte: dragen er klar for eventyr
+      [-1, 1].forEach(function (s) {
+        var bx = 50 + s * hodeR * 0.45, by = oyeY - hodeR * 0.42;
+        s2 += '<path d="M' + P(bx - s * 4.5, by - 2) + 'L' + P(bx + s * 4.5, by + 1.5) + '" stroke="' + MORK +
+          '" stroke-width="2.8" stroke-linecap="round"/>';
+      });
+    }
+
+    var my = sY + hodeR * 0.16, mw = hodeR * 0.34, stil = velg(rnd, ['glis', 'brol', 'tann']);
+    var m = '<g class="munn">';
+    if (stil === 'brol') {
+      m += '<ellipse cx="50" cy="' + tall(my + 1) + '" rx="' + tall(mw * 0.6) + '" ry="3.8" fill="#5a0f2a" stroke="' + MORK + '" stroke-width="1.8"/>' +
+        '<ellipse cx="50" cy="' + tall(my + 2.8) + '" rx="' + tall(mw * 0.35) + '" ry="1.5" fill="#ff7aa8"/>';
+      [-1, 1].forEach(function (s) {
+        var fx = 50 + s * mw * 0.3;
+        m += '<path d="M' + P(fx - 1.5, my - 2.2) + 'L' + P(fx, my + 0.6) + 'L' + P(fx + 1.5, my - 2.2) + 'Z" fill="#fff"/>';
+      });
+    } else {
+      var bredde = stil === 'tann' ? mw * 0.7 : mw;
+      m += '<path d="M' + P(50 - bredde, my - 1) + 'Q' + P(50, my + 6.5) + ' ' + P(50 + bredde, my - 1) +
+        'Z" fill="#5a0f2a" stroke="' + MORK + '" stroke-width="1.8" stroke-linejoin="round"/>';
+      (stil === 'tann' ? [0.45] : [-0.5, 0.5]).forEach(function (t) {
+        var fx = 50 + t * bredde;
+        m += '<path d="M' + P(fx - 1.6, my - 0.6) + 'L' + P(fx, my + 2.6) + 'L' + P(fx + 1.6, my - 0.6) + 'Z" fill="#fff"/>';
+      });
+    }
+    return svg(s2 + m + '</g>');
+  }
+
+  function tegnPirat(rnd, hue, f, uid) {
+    var hud = farge(hue, 60, 72), lys = farge(hue, 74, 80);
+    var form = velg(rnd, ['rund', 'paere', 'boks']);
+    var topp = mellomtall(rnd, 27, 32), bunn = mellomtall(rnd, 80, 84), hb = mellomtall(rnd, 23, 28);
+    var midY = (topp + bunn) / 2, kropp;
+    if (form === 'rund') kropp = ellD(50, midY, hb, (bunn - topp) / 2);
+    else if (form === 'paere') {
+      kropp = glattBane([[50, topp - 3], [50 + hb * 0.78, topp + 3], [50 + hb * 0.85, topp + 22],
+        [50 + hb * 1.08, bunn - 6], [50 + hb * 0.7, bunn + 2], [50 - hb * 0.7, bunn + 2],
+        [50 - hb * 1.08, bunn - 6], [50 - hb * 0.85, topp + 22], [50 - hb * 0.78, topp + 3]]);
+    } else kropp = hjorneBane([[50 - hb, topp], [50 + hb, topp], [50 + hb, bunn], [50 - hb, bunn]], 0.28);
+
+    var deler = [];
+    var krok = rnd() > 0.5 ? 1 : -1, treben = rnd() > 0.55 ? -krok : 0;
+
+    // bein: bukse, støvel — eller treben
+    [-1, 1].forEach(function (s) {
+      var x = 50 + s * hb * 0.42;
+      if (s === treben) {
+        deler.push({ d: hjorneBane([[x - 2.4, bunn - 4], [x + 2.4, bunn - 4], [x + 1.8, 93], [x - 1.8, 93]], 0.25), fyll: 'hsl(30 45% 48%)' });
+      } else {
+        deler.push({ d: hjorneBane([[x - 4, bunn - 4], [x + 4, bunn - 4], [x + 4, 89], [x - 4, 89]], 0.2), fyll: 'hsl(222 40% 34%)' });
+        deler.push({ d: ellD(x + s * 1.8, 90.5, 6.5, 3.4), fyll: '#2b1a12' });
+      }
+    });
+
+    // armer: én hånd og én krok
+    [-1, 1].forEach(function (s) {
+      var ax = 50 + s * hb * 0.8, ay = midY + 2;
+      var ex = 50 + s * Math.min(40, hb + 11), ey = midY + 10;
+      var ekstra = s === krok
+        ? '<path d="M' + P(ex, ey + 2) + 'L' + P(ex, ey + 5) + 'Q' + P(ex + s * 6.5, ey + 11) + ' ' + P(ex + s * 5, ey + 3) +
+          '" fill="none" stroke="#dfe6ee" stroke-width="2.6" stroke-linecap="round"/>'
+        : '';
+      deler.push({ d: tykkKurve([ax, ay], [ax + s * 8, ay + 1], [ex, ey], 3.6, 3), fyll: 'hsl(0 0% 96%)', ekstra: ekstra });
+      if (s !== krok) deler.push({ d: ellD(ex + s * 1, ey + 2, 4.2, 4), fyll: hud });
+    });
+
+    // kroppen, med stripet genser nederst (klippet til silhuetten)
+    var striper = '<g clip-path="url(#' + uid + 'k)">';
+    for (var y = bunn - 20, n = 0; y < bunn + 4; y += 5, n++) {
+      striper += '<rect x="0" y="' + tall(y) + '" width="100" height="5" fill="' + (n % 2 ? '#f4f4f4' : 'hsl(355 80% 52%)') + '"/>';
+    }
+    striper += '</g>';
+    deler.push({ d: kropp, fyll: hud, ekstra: striper });
+
+    // hatten
+    var hatt = velg(rnd, ['trespiss', 'bandana', 'bandana', 'trespiss', 'kaptein']);
+    if (hatt === 'bandana') {
+      var farg = rnd() > 0.5 ? 'hsl(355 80% 52%)' : farge((hue + 180) % 360, 50, 80);
+      var prikker = '';
+      for (var k = 0; k < 5; k++) prikker += sirkel(50 - hb * 0.6 + k * hb * 0.3, topp + 1 + (k % 2) * 3, 1.3, '#fff');
+      deler.push({
+        d: 'M' + P(50 - hb * 0.98, topp + 9) + 'Q' + P(50, topp - 13) + ' ' + P(50 + hb * 0.98, topp + 9) +
+          'Q' + P(50, topp + 4) + ' ' + P(50 - hb * 0.98, topp + 9) + 'Z',
+        fyll: farg, ekstra: prikker
+      });
+      var kx = 50 - krok * hb * 0.95;
+      deler.push({ d: mangekant([[kx, topp + 7], [kx - krok * 9, topp + 4], [kx - krok * 7, topp + 13]]), fyll: farg });
+    } else {
+      var hy = Math.max(topp + 5, 28), w = Math.min(hb * 1.25, 34);
+      var skalle = sirkel(50, hy - 9, 3.6, '#fff') + sirkel(48.6, hy - 9.4, 0.9, MORK) + sirkel(51.4, hy - 9.4, 0.9, MORK) +
+        '<path d="M' + P(46, hy - 5.5) + 'L' + P(54, hy - 2.5) + 'M' + P(54, hy - 5.5) + 'L' + P(46, hy - 2.5) +
+        '" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>' +
+        '<path d="M' + P(50 - w * 0.9, hy - 1) + 'Q' + P(50, hy + 4) + ' ' + P(50 + w * 0.9, hy - 1) +
+        '" fill="none" stroke="hsl(45 90% 60%)" stroke-width="1.8"/>';
+      if (hatt === 'kaptein') {
+        skalle += '<path d="M' + P(50 + w * 0.4, hy - 12) + 'Q' + P(50 + w * 0.8, hy - 24) + ' ' + P(50 + w * 0.95, hy - 20) +
+          'Q' + P(50 + w * 0.7, hy - 14) + ' ' + P(50 + w * 0.45, hy - 10) + 'Z" fill="' + f.aksent + '" stroke="' + MORK + '" stroke-width="1.4"/>';
+      }
+      deler.push({
+        d: 'M' + P(50 - w, hy) + 'Q' + P(50 - w * 0.62, hy - 16) + ' ' + P(50 - w * 0.3, hy - 10) +
+          'Q' + P(50, hy - 22) + ' ' + P(50 + w * 0.3, hy - 10) + 'Q' + P(50 + w * 0.62, hy - 16) + ' ' + P(50 + w, hy) +
+          'Q' + P(50, hy + 6) + ' ' + P(50 - w, hy) + 'Z',
+        fyll: '#2a2036', ekstra: skalle
+      });
+    }
+
+    var s = '<defs><clipPath id="' + uid + 'k"><path d="' + kropp + '"/></clipPath></defs>' + klistremerke(deler);
+
+    // ansiktet
+    var oyeY = topp + (bunn - topp) * 0.33, dx = hb * 0.36, r = Math.min(6.5, hb * 0.26);
+    var klaff = rnd() > 0.45 ? (rnd() > 0.5 ? 1 : -1) : 0, blikk = (rnd() - 0.5) * 1.4;
+    var iris = velg(rnd, ['hsl(200 80% 45%)', 'hsl(28 70% 38%)', 'hsl(120 55% 38%)']);
+    if (klaff) {
+      s += '<path d="M' + P(50 - hb * 0.95, oyeY - 9 + klaff * 2) + 'L' + P(50 + hb * 0.95, oyeY - 9 - klaff * 2) +
+        '" stroke="' + MORK + '" stroke-width="1.8"/>';
+    }
+    [-1, 1].forEach(function (side) {
+      var x = 50 + side * dx;
+      if (side === klaff) {
+        s += '<ellipse cx="' + tall(x) + '" cy="' + tall(oyeY) + '" rx="' + tall(r * 1.05) + '" ry="' + tall(r * 0.9) +
+          '" fill="' + MORK + '"/>';
+      } else {
+        s += tegneserieOye(x, oyeY, r, iris, blikk, false);
+      }
+    });
+    s += '<ellipse cx="50" cy="' + tall(oyeY + 8) + '" rx="4.2" ry="3.4" fill="' + lys + '" stroke="' + MORK + '" stroke-width="1.8"/>';
+    var mY = oyeY + 15;
+    if (rnd() > 0.55) {
+      s += '<path d="M' + P(35, mY - 3) + 'Q' + P(50, mY + 17) + ' ' + P(65, mY - 3) + 'Q' + P(50, mY + 5) + ' ' + P(35, mY - 3) +
+        'Z" fill="hsl(25 45% 30%)" stroke="' + MORK + '" stroke-width="1.6"/>';
+    }
+    if (rnd() > 0.4) {
+      var ox = 50 + (klaff ? klaff : 1) * hb * 0.97;
+      s += '<circle cx="' + tall(ox) + '" cy="' + tall(oyeY + 9) + '" r="2.8" fill="none" stroke="hsl(45 95% 55%)" stroke-width="1.8"/>';
+    }
+    var m = '<g class="munn">';
+    if (rnd() > 0.5) {
+      m += '<path d="M' + P(42, mY - 1) + 'Q' + P(50, mY + 7) + ' ' + P(58, mY - 1) + 'Z" fill="#5a0f2a" stroke="' + MORK +
+        '" stroke-width="1.8" stroke-linejoin="round"/>' +
+        '<rect x="' + tall(44.5) + '" y="' + tall(mY - 0.8) + '" width="4" height="2.6" fill="#fff"/>' +
+        '<rect x="' + tall(49.5) + '" y="' + tall(mY - 0.8) + '" width="4" height="2.6" fill="hsl(45 95% 55%)"/>';
+    } else {
+      m += '<ellipse cx="50" cy="' + tall(mY + 1) + '" rx="4.5" ry="3.6" fill="#5a0f2a" stroke="' + MORK + '" stroke-width="1.8"/>' +
+        '<ellipse cx="50" cy="' + tall(mY + 2.8) + '" rx="2.6" ry="1.3" fill="#ff7aa8"/>';
+    }
+    s += m + '</g>';
+
+    // papegøye på skulderen
+    if (rnd() > 0.7) {
+      var px = 50 - krok * (hb - 1), py = topp + 12;
+      s += '<g stroke="' + MORK + '" stroke-width="1.4">' +
+        '<path d="M' + P(px - 1, py + 6) + 'L' + P(px - krok * 3, py + 15) + 'L' + P(px + krok * 1, py + 7) + 'Z" fill="hsl(355 80% 52%)"/>' +
+        '<ellipse cx="' + tall(px) + '" cy="' + tall(py + 3) + '" rx="4" ry="5.5" fill="hsl(120 70% 45%)"/>' +
+        '<circle cx="' + tall(px + krok * 0.5) + '" cy="' + tall(py - 3.5) + '" r="3.6" fill="hsl(120 70% 45%)"/>' +
+        '<path d="M' + P(px - krok * 3, py - 4.5) + 'L' + P(px - krok * 7, py - 2.5) + 'L' + P(px - krok * 3, py - 1.5) + 'Z" fill="hsl(45 95% 55%)"/>' +
+        '</g>' + sirkel(px - krok * 1, py - 4.3, 0.9, MORK);
+    }
+    return svg(s);
+  }
+
+  /* ---------- metall ---------- */
+
+  function tegnMetall(rnd, hue, f, uid) {
+    var lys = farge(hue, 60, 100), strek = '#1b2130', mork = '#0e1320';
+    var A = 'url(#' + uid + 'a)', B = 'url(#' + uid + 'b)';
+    var defs = '<defs>' +
+      '<linearGradient id="' + uid + 'a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + farge(hue, 92, 18) +
+      '"/><stop offset="0.5" stop-color="' + farge(hue, 66, 14) + '"/><stop offset="1" stop-color="' + farge(hue, 38, 22) + '"/></linearGradient>' +
+      '<linearGradient id="' + uid + 'b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + farge(hue, 80, 14) +
+      '"/><stop offset="0.5" stop-color="' + farge(hue, 54, 14) + '"/><stop offset="1" stop-color="' + farge(hue, 30, 22) + '"/></linearGradient>' +
+      '</defs>';
+    function rekt(x, y, b, h, rx, fyll, bredde) {
+      return '<rect x="' + tall(x) + '" y="' + tall(y) + '" width="' + tall(b) + '" height="' + tall(h) + '" rx="' + tall(rx) +
+        '" fill="' + fyll + '" stroke="' + strek + '" stroke-width="' + (bredde || 2.4) + '"/>';
+    }
+    function lampe(x, y, r) {
+      return '<circle cx="' + tall(x) + '" cy="' + tall(y) + '" r="' + tall(r * 1.3) + '" fill="' + lys + '" opacity="0.25"/>' +
+        '<circle cx="' + tall(x) + '" cy="' + tall(y) + '" r="' + tall(r) + '" fill="' + mork + '" stroke="' + strek + '" stroke-width="1.6"/>' +
+        sirkel(x, y, r * 0.66, lys) + sirkel(x - r * 0.25, y - r * 0.25, r * 0.22, '#fff');
+    }
+
+    var hw = mellomtall(rnd, 19, 26), hh = mellomtall(rnd, 19, 25);
+    var bw = mellomtall(rnd, 16, 24), bh = mellomtall(rnd, 19, 25), hals = 4;
+    var ben = velg(rnd, ['belter', 'hjul', 'fjaer', 'bein']);
+    var y0 = Math.max(18, 93 - (hh + hals + bh + 12));
+    var y1 = y0 + hh + hals, yb = y1 + bh;
+    var s = defs;
+
+    // antenne
+    var ant = velg(rnd, ['kule', 'lyn', 'dobbel', 'kule', 'ingen']);
+    if (ant === 'kule') {
+      var at = Math.max(9, y0 - mellomtall(rnd, 9, 13));
+      s += '<path d="M' + P(50, y0) + 'L' + P(50, at) + '" stroke="' + strek + '" stroke-width="2.4"/>' + lampe(50, at, 3.4);
+    } else if (ant === 'lyn') {
+      var lt = Math.max(7, y0 - 13);
+      s += '<path d="M' + P(50, y0) + 'L' + P(53, y0 - 5) + 'L' + P(47, y0 - 8) + 'L' + P(51, lt) +
+        '" fill="none" stroke="' + lys + '" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>';
+    } else if (ant === 'dobbel') {
+      [-1, 1].forEach(function (sd) {
+        var tx = 50 + sd * hw * 0.55, ty = Math.max(9, y0 - 9);
+        s += '<path d="M' + P(50 + sd * hw * 0.35, y0) + 'L' + P(tx, ty) + '" stroke="' + strek + '" stroke-width="2.2"/>' + lampe(tx, ty, 2.6);
+      });
+    }
+
+    // ører, armer og bein ligger bak kroppen
+    [-1, 1].forEach(function (sd) {
+      s += rekt(50 + sd * (hw + 1) - 3.5, y0 + hh * 0.3, 7, hh * 0.4, 2, B, 2);
+    });
+    var klo = rnd() > 0.5, armOpp = rnd() > 0.5;
+    [-1, 1].forEach(function (sd) {
+      var ax = 50 + sd * bw, ay = y1 + 6;
+      var ex = Math.max(8, Math.min(92, 50 + sd * (bw + 11))), ey = ay + (armOpp ? -8 : 12);
+      var d = 'M' + P(ax, ay) + 'L' + P(50 + sd * (bw + 7), ay + 3) + 'L' + P(ex, ey);
+      s += '<path d="' + d + '" fill="none" stroke="' + strek + '" stroke-width="6.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+        '<path d="' + d + '" fill="none" stroke="' + farge(hue, 70, 14) + '" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/>' +
+        '<circle cx="' + tall(50 + sd * (bw + 7)) + '" cy="' + tall(ay + 3) + '" r="2.6" fill="' + A + '" stroke="' + strek + '" stroke-width="1.4"/>';
+      if (klo) {
+        s += '<path d="M' + P(ex - sd * 1, ey - 4.5) + 'Q' + P(ex + sd * 6, ey) + ' ' + P(ex - sd * 1, ey + 4.5) +
+          '" fill="none" stroke="' + strek + '" stroke-width="2.8" stroke-linecap="round"/>';
+      } else {
+        s += '<circle cx="' + tall(ex) + '" cy="' + tall(ey) + '" r="3.6" fill="' + A + '" stroke="' + strek + '" stroke-width="1.8"/>';
+      }
+    });
+    if (ben === 'belter') {
+      s += rekt(50 - bw - 2, yb - 1, bw * 2 + 4, 11, 5.5, '#2a3040');
+      for (var h = 0; h < 4; h++) {
+        s += '<circle cx="' + tall(50 - bw + 3 + h * (bw * 2 - 6) / 3) + '" cy="' + tall(yb + 4.5) + '" r="3" fill="' + A + '" stroke="' + strek + '" stroke-width="1.2"/>';
+      }
+    } else if (ben === 'hjul') {
+      [-1, 1].forEach(function (sd) {
+        var x = 50 + sd * bw * 0.55;
+        s += '<circle cx="' + tall(x) + '" cy="' + tall(yb + 5.5) + '" r="6" fill="#2a3040" stroke="' + strek + '" stroke-width="2.2"/>' +
+          '<circle cx="' + tall(x) + '" cy="' + tall(yb + 5.5) + '" r="2.4" fill="' + A + '"/>';
+      });
+    } else if (ben === 'fjaer') {
+      var z = 'M' + P(50, yb);
+      for (var q = 1; q <= 5; q++) z += 'L' + P(50 + (q % 2 ? 5 : -5), yb + q * 1.7);
+      s += '<path d="' + z + 'L' + P(50, yb + 9) + '" fill="none" stroke="' + strek + '" stroke-width="2.4" stroke-linejoin="round"/>' +
+        rekt(38, yb + 8.5, 24, 3.5, 1.5, A, 1.8);
+    } else {
+      [-1, 1].forEach(function (sd) {
+        var x = 50 + sd * bw * 0.45;
+        s += rekt(x - 3, yb - 1, 6, 8, 1, B, 1.8) + rekt(x - 6 + sd * 1.5, yb + 7, 12, 4, 2, A, 1.8);
+      });
+    }
+
+    // hals, kropp, hode
+    s += rekt(46, y0 + hh - 1, 8, hals + 2, 1, B, 1.8);
+    s += rekt(50 - bw, y1, bw * 2, bh, 4, B);
+    var bryst = velg(rnd, ['skjerm', 'hjerte', 'knapper', 'maaler']), cy = y1 + bh * 0.48;
+    if (bryst === 'skjerm') {
+      s += rekt(50 - bw * 0.55, cy - 6, bw * 1.1, 12, 2, mork, 1.6);
+      [0.6, 1, 0.4, 0.8].forEach(function (v, i) {
+        s += '<rect x="' + tall(50 - bw * 0.45 + i * bw * 0.24) + '" y="' + tall(cy + 4.5 - v * 8) + '" width="' + tall(bw * 0.16) +
+          '" height="' + tall(v * 8) + '" fill="' + lys + '"/>';
+      });
+    } else if (bryst === 'hjerte') {
+      s += rekt(50 - 7, cy - 6.5, 14, 13, 3, mork, 1.6) +
+        '<path d="M' + P(50, cy + 3.5) + 'C' + P(43, cy - 1) + ' ' + P(46, cy - 6) + ' ' + P(50, cy - 2.5) + 'C' + P(54, cy - 6) + ' ' +
+        P(57, cy - 1) + ' ' + P(50, cy + 3.5) + 'Z" fill="hsl(350 95% 62%)"/>';
+    } else if (bryst === 'knapper') {
+      [0, 50, 120].forEach(function (h2, i) {
+        s += '<circle cx="' + tall(50 + (i - 1) * 7) + '" cy="' + tall(cy) + '" r="2.8" fill="hsl(' + h2 + ' 90% 55%)" stroke="' + strek + '" stroke-width="1.4"/>';
+      });
+    } else {
+      s += '<circle cx="50" cy="' + tall(cy) + '" r="7" fill="#f2f5f8" stroke="' + strek + '" stroke-width="1.8"/>' +
+        '<path d="M' + P(50, cy) + 'L' + P(50 + 4.5, cy - 3.5) + '" stroke="hsl(355 85% 50%)" stroke-width="1.6" stroke-linecap="round"/>' +
+        sirkel(50, cy, 1.2, strek);
+    }
+
+    var rund = velg(rnd, [3, 3, 8, 11]);
+    s += rekt(50 - hw, y0, hw * 2, hh, rund, A);
+    s += '<rect x="' + tall(50 - hw + 3) + '" y="' + tall(y0 + 2.5) + '" width="' + tall(hw * 0.8) + '" height="2.2" rx="1.1" fill="#fff" opacity="0.45"/>';
+    if (rund < 8) {
+      [[-1, 1], [1, 1], [-1, -1], [1, -1]].forEach(function (k) {
+        s += sirkel(50 + k[0] * (hw - 3.2), k[1] > 0 ? y0 + 3.2 : y0 + hh - 3.2, 1.2, farge(hue, 40, 10));
+      });
+    }
+
+    var oy = y0 + hh * 0.4, oyne = velg(rnd, ['lamper', 'lamper', 'kamera', 'visir', 'ulike']);
+    s += '<g class="oye">';
+    if (oyne === 'kamera') {
+      var kr = Math.min(hw * 0.42, hh * 0.3);
+      s += '<circle cx="50" cy="' + tall(oy) + '" r="' + tall(kr) + '" fill="' + mork + '" stroke="' + strek + '" stroke-width="1.8"/>' +
+        sirkel(50, oy, kr * 0.75, farge(hue, 25, 30)) + sirkel(50, oy, kr * 0.45, lys) + sirkel(50 - kr * 0.25, oy - kr * 0.25, kr * 0.16, '#fff');
+    } else if (oyne === 'visir') {
+      s += '<rect x="' + tall(50 - hw * 0.78) + '" y="' + tall(oy - 4.5) + '" width="' + tall(hw * 1.56) + '" height="9" rx="4.5" fill="' + mork +
+        '" stroke="' + strek + '" stroke-width="1.8"/><rect x="' + tall(50 - hw * 0.6) + '" y="' + tall(oy - 1.2) + '" width="' + tall(hw * 1.2) +
+        '" height="2.4" rx="1.2" fill="' + lys + '"/>';
+    } else {
+      var lr = Math.min(hw * 0.26, 6.5);
+      s += lampe(50 - hw * 0.45, oy, oyne === 'ulike' ? lr * 1.25 : lr) + lampe(50 + hw * 0.45, oy, oyne === 'ulike' ? lr * 0.7 : lr);
+    }
+    s += '</g>';
+
+    var my = y0 + hh * 0.78, mw = hw * 0.5, munnStil = velg(rnd, ['led', 'gitter', 'sikksakk']);
+    s += '<g class="munn"><rect x="' + tall(50 - mw) + '" y="' + tall(my - 2.6) + '" width="' + tall(mw * 2) + '" height="5.2" rx="1.6" fill="' + mork +
+      '" stroke="' + strek + '" stroke-width="1.4"/>';
+    if (munnStil === 'led') {
+      for (var l = 0; l < 5; l++) s += '<rect x="' + tall(50 - mw + 1.5 + l * (mw * 2 - 3) / 5) + '" y="' + tall(my - 1.2) + '" width="' + tall((mw * 2 - 3) / 5 - 1) + '" height="2.4" fill="' + lys + '"/>';
+    } else if (munnStil === 'gitter') {
+      for (var g2 = 1; g2 < 6; g2++) s += '<path d="M' + P(50 - mw + g2 * mw / 3, my - 2) + 'L' + P(50 - mw + g2 * mw / 3, my + 2) + '" stroke="' + farge(hue, 55, 15) + '" stroke-width="1.2"/>';
+    } else {
+      var zz = 'M' + P(50 - mw + 1.5, my);
+      for (var z2 = 1; z2 <= 6; z2++) zz += 'L' + P(50 - mw + 1.5 + z2 * (mw * 2 - 3) / 6, my + (z2 % 2 ? -1.4 : 1.4));
+      s += '<path d="' + zz + '" fill="none" stroke="' + lys + '" stroke-width="1.4"/>';
+    }
+    s += '</g>';
+    return svg(s);
+  }
+
+  /* ---------- godteri i 3D ---------- */
+
+  function tegnGodteri(rnd, hue, f, uid) {
+    var G = 'url(#' + uid + 'g)';
+    var s = '<defs><radialGradient id="' + uid + 'g" cx="0.36" cy="0.3" r="0.78">' +
+      '<stop offset="0" stop-color="' + farge(hue, 94, 100) + '"/><stop offset="0.3" stop-color="' + farge(hue, 80, 95) + '"/>' +
+      '<stop offset="0.72" stop-color="' + farge(hue, 62, 85) + '"/><stop offset="1" stop-color="' + farge(hue, 42, 72) + '"/></radialGradient></defs>' +
+      '<ellipse cx="50" cy="93" rx="23" ry="3" fill="#000" opacity="0.35"/>';
+    var kant = farge(hue, 32, 60), annen = farge((hue + 150) % 360, 78, 90);
+    var form = velg(rnd, ['kule', 'drops', 'bonne', 'cupcake', 'slikkepinne', 'innpakket']);
+    var a;           // hvor ansiktet sitter: x, y og størrelse
+    var glans = null;
+    function strossel(x0, x1, y0, y1, n) {
+      var t = '';
+      for (var i = 0; i < n; i++) {
+        var x = mellomtall(rnd, x0, x1), y = mellomtall(rnd, y0, y1), v = Math.round(rnd() * 180);
+        t += '<rect x="' + tall(x - 2.2) + '" y="' + tall(y - 0.8) + '" width="4.4" height="1.6" rx="0.8" fill="hsl(' +
+          Math.round(rnd() * 360) + ' 90% 65%)" transform="rotate(' + v + ' ' + tall(x) + ' ' + tall(y) + ')"/>';
+      }
+      return t;
+    }
+
+    if (form === 'kule') {
+      var r = mellomtall(rnd, 27, 30), cy = 91 - r;
+      s += '<circle cx="50" cy="' + tall(cy) + '" r="' + tall(r) + '" fill="' + G + '" stroke="' + kant + '" stroke-width="1.5"/>';
+      if (rnd() > 0.5) s += strossel(36, 64, cy - r * 0.8, cy - r * 0.45, 7);
+      a = { y: cy + r * 0.08, b: r };
+      glans = [50 - r * 0.42, cy - r * 0.5, r * 0.28, r * 0.15];
+    } else if (form === 'drops') {
+      s += '<path d="M' + P(22, 90) + 'C' + P(19, 52) + ' ' + P(30, 27) + ' ' + P(50, 27) + 'C' + P(70, 27) + ' ' + P(81, 52) + ' ' +
+        P(78, 90) + 'Q' + P(50, 94) + ' ' + P(22, 90) + 'Z" fill="' + G + '" stroke="' + kant + '" stroke-width="1.5"/>';
+      for (var k = 0; k < 16; k++) {
+        s += '<rect x="' + tall(mellomtall(rnd, 28, 71)) + '" y="' + tall(mellomtall(rnd, 34, 86)) + '" width="1.6" height="1.6" fill="#fff" opacity="0.6"/>';
+      }
+      a = { y: 64, b: 24 };
+      glans = [38, 40, 7, 4];
+    } else if (form === 'bonne') {
+      s += '<ellipse cx="50" cy="62" rx="33" ry="22" transform="rotate(-16 50 62)" fill="' + G + '" stroke="' + kant + '" stroke-width="1.5"/>';
+      a = { y: 61, b: 21 };
+      glans = [33, 52, 8, 4];
+    } else if (form === 'cupcake') {
+      s += '<path d="M' + P(27, 64) + 'L' + P(73, 64) + 'L' + P(67, 90) + 'L' + P(33, 90) + 'Z" fill="' + annen + '" stroke="' + kant + '" stroke-width="1.5" stroke-linejoin="round"/>';
+      for (var rille = 1; rille < 7; rille++) {
+        var rx0 = 27 + rille * 46 / 7, rx1 = 33 + rille * 34 / 7;
+        s += '<path d="M' + P(rx0, 64) + 'L' + P(rx1, 90) + '" stroke="#fff" stroke-width="1.2" opacity="0.5"/>';
+      }
+      s += '<path d="' + glattBane([[50, 26], [62, 32], [74, 40], [78, 56], [70, 68], [50, 70], [30, 68], [22, 56], [26, 40], [38, 32]]) +
+        '" fill="' + G + '" stroke="' + kant + '" stroke-width="1.5"/>';
+      s += '<path d="M' + P(50, 24) + 'Q' + P(53, 14) + ' ' + P(58, 12) + '" fill="none" stroke="hsl(120 50% 35%)" stroke-width="1.6"/>' +
+        '<circle cx="50" cy="26" r="5.5" fill="hsl(355 90% 52%)" stroke="hsl(355 70% 35%)" stroke-width="1.2"/>' + sirkel(48.2, 24.3, 1.5, '#fff');
+      s += strossel(34, 66, 36, 44, 6);
+      a = { y: 52, b: 21 };
+      glans = [34, 42, 5, 3];
+    } else if (form === 'slikkepinne') {
+      s += '<rect x="47.5" y="62" width="5" height="30" rx="2" fill="#f7f7f7" stroke="#c9c9c9" stroke-width="1"/>';
+      s += '<circle cx="50" cy="42" r="28" fill="' + G + '" stroke="' + kant + '" stroke-width="1.5"/>';
+      var spiral = 'M' + P(50, 42), ang = 0, rr = 2;
+      for (var sp = 0; sp < 30; sp++) { ang += 0.55; rr += 0.82; spiral += 'L' + P(50 + Math.cos(ang) * rr, 42 + Math.sin(ang) * rr); }
+      s += '<path d="' + spiral + '" fill="none" stroke="#fff" stroke-width="3.2" opacity="0.45" stroke-linecap="round"/>';
+      a = { y: 45, b: 22 };
+      glans = [37, 27, 7, 3.5];
+    } else {
+      [-1, 1].forEach(function (sd) {
+        s += '<path d="M' + P(50 + sd * 22, 60) + 'L' + P(50 + sd * 43, 45) + 'Q' + P(50 + sd * 38, 60) + ' ' + P(50 + sd * 43, 75) +
+          'Z" fill="' + annen + '" stroke="' + kant + '" stroke-width="1.5" stroke-linejoin="round"/>' +
+          '<path d="M' + P(50 + sd * 24, 60) + 'L' + P(50 + sd * 38, 52) + 'M' + P(50 + sd * 24, 60) + 'L' + P(50 + sd * 38, 68) +
+          '" stroke="#fff" stroke-width="1.2" opacity="0.6"/>';
+      });
+      s += '<ellipse cx="50" cy="60" rx="27" ry="22" fill="' + G + '" stroke="' + kant + '" stroke-width="1.5"/>';
+      a = { y: 59, b: 20 };
+      glans = [39, 47, 7, 3.5];
+    }
+    s += '<ellipse cx="' + tall(glans[0]) + '" cy="' + tall(glans[1]) + '" rx="' + tall(glans[2]) + '" ry="' + tall(glans[3]) +
+      '" fill="#fff" opacity="0.6" transform="rotate(-28 ' + tall(glans[0]) + ' ' + tall(glans[1]) + ')"/>';
+
+    // ansikt: store blanke øyne, rødme i kinnene
+    var b = a.b, ey = a.y - b * 0.16, ex = b * 0.42, oyeStil = velg(rnd, ['blanke', 'blanke', 'glad', 'iris']);
+    [-1, 1].forEach(function (sd) {
+      s += '<ellipse cx="' + tall(50 + sd * b * 0.66) + '" cy="' + tall(a.y + b * 0.16) + '" rx="' + tall(b * 0.15) + '" ry="' + tall(b * 0.09) +
+        '" fill="hsl(340 95% 72%)" opacity="0.7"/>';
+    });
+    [-1, 1].forEach(function (sd) {
+      var x = 50 + sd * ex, rx = b * 0.22, ry = b * 0.28;
+      s += '<g class="oye">';
+      if (oyeStil === 'glad') {
+        s += '<path d="M' + P(x - rx, ey + 1) + 'Q' + P(x, ey - ry * 1.1) + ' ' + P(x + rx, ey + 1) + '" fill="none" stroke="#2a1030" stroke-width="2.6" stroke-linecap="round"/>';
+      } else {
+        if (oyeStil === 'iris') {
+          s += '<ellipse cx="' + tall(x) + '" cy="' + tall(ey) + '" rx="' + tall(rx) + '" ry="' + tall(ry) + '" fill="#fff" stroke="#2a1030" stroke-width="1.2"/>' +
+            '<ellipse cx="' + tall(x) + '" cy="' + tall(ey + ry * 0.15) + '" rx="' + tall(rx * 0.72) + '" ry="' + tall(ry * 0.75) + '" fill="' + farge((hue + 180) % 360, 45, 80) + '"/>' +
+            '<ellipse cx="' + tall(x) + '" cy="' + tall(ey + ry * 0.2) + '" rx="' + tall(rx * 0.4) + '" ry="' + tall(ry * 0.45) + '" fill="#2a1030"/>';
+        } else {
+          s += '<ellipse cx="' + tall(x) + '" cy="' + tall(ey) + '" rx="' + tall(rx) + '" ry="' + tall(ry) + '" fill="#2a1030"/>';
+        }
+        s += sirkel(x + rx * 0.3, ey - ry * 0.4, rx * 0.4, '#fff') + sirkel(x - rx * 0.35, ey + ry * 0.45, rx * 0.17, '#fff');
+      }
+      s += '</g>';
+    });
+    var my = a.y + b * 0.3, munnStil = velg(rnd, ['aapen', 'katt', 'liten']);
+    s += '<g class="munn">';
+    if (munnStil === 'aapen') {
+      s += '<path d="M' + P(50 - b * 0.2, my - 1) + 'Q' + P(50, my + b * 0.36) + ' ' + P(50 + b * 0.2, my - 1) + 'Z" fill="#5a1030"/>' +
+        '<ellipse cx="50" cy="' + tall(my + b * 0.12) + '" rx="' + tall(b * 0.08) + '" ry="' + tall(b * 0.05) + '" fill="#ff7aa8"/>';
+    } else if (munnStil === 'katt') {
+      s += '<ellipse cx="50" cy="' + tall(my + 1.4) + '" rx="1.8" ry="1.4" fill="#5a1030"/>' +
+        '<path d="M' + P(50 - b * 0.16, my - 0.5) + 'Q' + P(50 - b * 0.08, my + 2.5) + ' ' + P(50, my) + 'Q' + P(50 + b * 0.08, my + 2.5) + ' ' +
+        P(50 + b * 0.16, my - 0.5) + '" fill="none" stroke="#2a1030" stroke-width="1.8" stroke-linecap="round"/>';
+    } else {
+      s += '<ellipse cx="50" cy="' + tall(my + 0.5) + '" rx="' + tall(b * 0.07) + '" ry="' + tall(b * 0.08) + '" fill="#5a1030"/>';
+    }
+    return svg(s + '</g>');
+  }
+
+  /* ---------- hulemalerier ---------- */
+
+  /* Dinosaurene står i profil, som på en hulevegg: en fylt silhuett i
+     kritt på en steinflis, med skravur og en ekstra, litt forskjøvet
+     krittstrek rundt. Silhuettene er noen få nøkkelpunkter per art som rystes
+     litt og glattes — da blir hvert dyr litt forskjellig, og alle ser tegnet
+     for hånd. */
+  var DINOER = {
+    trex: {
+      kropp: [[10, 60], [26, 50], [40, 44], [52, 40], [60, 30], [66, 20], [80, 17], [90, 22], [93, 30], [86, 35],
+        [74, 37], [68, 43], [66, 53], [58, 63], [44, 65], [30, 61]],
+      bein: [[[46, 60], [43, 74], [48, 86]], [[56, 60], [60, 74], [55, 86]]], arm: [[64, 48], [70, 53], [73, 50]],
+      oye: [79, 24], munn: [85, 31], tenner: true
+    },
+    langhals: {
+      kropp: [[5, 68], [20, 58], [34, 48], [50, 43], [62, 46], [67, 36], [71, 22], [75, 12], [85, 10], [91, 15], [86, 20],
+        [78, 21], [76, 32], [74, 46], [70, 58], [56, 65], [38, 66], [22, 66]],
+      bein: [[[30, 60], [30, 86]], [[40, 63], [40, 86]], [[58, 62], [58, 86]], [[66, 58], [66, 86]]],
+      oye: [82, 14], munn: [87, 18]
+    },
+    triceratops: {
+      kropp: [[8, 62], [22, 54], [36, 46], [52, 44], [62, 46], [63, 30], [70, 22], [78, 30], [84, 40], [93, 48], [86, 55],
+        [74, 57], [66, 62], [52, 67], [34, 67], [20, 65]],
+      bein: [[[30, 63], [30, 86]], [[40, 65], [40, 86]], [[58, 65], [58, 86]], [[66, 63], [66, 86]]],
+      horn: [[[79, 37], [91, 27]], [[71, 31], [82, 19]], [[88, 48], [94, 44]]],
+      oye: [78, 42], munn: [88, 52]
+    },
+    stego: {
+      kropp: [[5, 72], [18, 62], [32, 50], [48, 44], [62, 48], [72, 56], [82, 56], [90, 59], [91, 64], [84, 67], [72, 67],
+        [62, 70], [44, 71], [26, 71], [14, 72]],
+      plater: [[24, 56], [34, 48], [46, 43], [57, 45], [66, 51]],
+      bein: [[[30, 68], [30, 86]], [[38, 70], [38, 86]], [[56, 69], [56, 86]], [[64, 67], [64, 86]]],
+      oye: [86, 59], munn: [89, 64]
+    },
+    ptero: {
+      kropp: [[50, 34], [56, 38], [90, 30], [80, 48], [58, 50], [56, 64], [50, 72], [44, 64], [42, 50], [20, 48], [10, 30], [44, 38]],
+      bein: [[[47, 68], [45, 80]], [[53, 68], [55, 80]]],
+      hode: true, oye: [54, 27], munn: [62, 31]
+    }
+  };
+
+  function tegnDino(rnd, hue, f, uid) {
+    var art = velg(rnd, ['trex', 'langhals', 'triceratops', 'stego', 'ptero', 'trex']);
+    var D = DINOER[art];
+    var kritt = farge(hue, 64, 62), mork2 = farge(hue, 42, 55), lysKritt = '#f6ecd9';
+    function ryst(p) { return [p[0] + (rnd() - 0.5) * 2.4, p[1] + (rnd() - 0.5) * 2.4]; }
+
+    // steinflisen
+    var stein = [];
+    for (var i = 0; i < 11; i++) {
+      var ang = i / 11 * Math.PI * 2, rr = 45 + (rnd() - 0.5) * 3;
+      stein.push([50 + Math.cos(ang) * rr, 50 + Math.sin(ang) * rr * 0.97]);
+    }
+    var s = '<defs><linearGradient id="' + uid + 's" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#4c4038"/>' +
+      '<stop offset="1" stop-color="#29211d"/></linearGradient></defs>' +
+      '<path d="' + glattBane(stein) + '" fill="url(#' + uid + 's)" stroke="#15100e" stroke-width="2"/>';
+    for (i = 0; i < 14; i++) {
+      var va = rnd() * Math.PI * 2, vr = rnd() * 38;
+      s += sirkel(50 + Math.cos(va) * vr, 50 + Math.sin(va) * vr, 0.5 + rnd(), '#5d5046');
+    }
+    var sprekk = 'M' + P(50 + 44 * Math.cos(1.2 + rnd()), 50 + 44 * Math.sin(1.2 + rnd()));
+    for (i = 0; i < 3; i++) sprekk += 'L' + P(mellomtall(rnd, 30, 70), mellomtall(rnd, 70, 88));
+    s += '<path d="' + sprekk + '" fill="none" stroke="#1a1412" stroke-width="1"/>';
+
+    // dyret, speilet halve gangen så noen ser til venstre
+    var speil = rnd() > 0.5;
+    /* Litt mindre enn flisen, så langhalsen ikke stikker hodet ut over kanten. */
+    var g = '<g transform="translate(7 7.3) scale(0.86)"><g' + (speil ? ' transform="matrix(-1 0 0 1 100 0)"' : '') + '>';
+    D.bein.forEach(function (b) {
+      var d = 'M' + b.map(function (p) { var q = ryst(p); return P(q[0], q[1]); }).join('L');
+      g += '<path d="' + d + '" fill="none" stroke="' + mork2 + '" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>';
+    });
+    if (D.plater) {
+      D.plater.forEach(function (p, k) {
+        var h = k === 2 ? 13 : 10;
+        g += '<path d="' + mangekant([[p[0] - 5, p[1] + 4], [p[0] - 1, p[1] - h], [p[0] + 5, p[1] + 3]]) + '" fill="' +
+          farge((hue + 30) % 360, 60, 60) + '" stroke="' + mork2 + '" stroke-width="1.5" stroke-linejoin="round"/>';
+      });
+    }
+    var kropp = glattBane(D.kropp.map(ryst));
+    g += '<path d="' + kropp + '" fill="' + kritt + '" stroke="' + mork2 + '" stroke-width="2"/>';
+    if (D.hode) {
+      g += '<path d="M' + P(55, 30) + 'L' + P(72, 32) + 'L' + P(56, 35) + 'Z" fill="' + kritt + '" stroke="' + mork2 + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+        '<path d="M' + P(47, 26) + 'L' + P(34, 20) + 'L' + P(48, 30) + 'Z" fill="' + kritt + '" stroke="' + mork2 + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+        '<circle cx="51" cy="29" r="7" fill="' + kritt + '" stroke="' + mork2 + '" stroke-width="1.8"/>';
+    }
+    if (D.horn) {
+      D.horn.forEach(function (h) {
+        var b0 = h[0], t = h[1];
+        g += '<path d="' + mangekant([[b0[0] - 2.2, b0[1] + 1.5], t, [b0[0] + 2.2, b0[1] - 1.5]]) + '" fill="' + lysKritt +
+          '" stroke="' + mork2 + '" stroke-width="1.3" stroke-linejoin="round"/>';
+      });
+    }
+    if (D.arm) {
+      g += '<path d="M' + D.arm.map(function (p) { return P(p[0], p[1]); }).join('L') + '" fill="none" stroke="' + mork2 +
+        '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    // skravur og flekker, som om det er malt med kritt og fingre
+    var sx = 0, sy = 0;
+    D.kropp.forEach(function (p) { sx += p[0]; sy += p[1]; });
+    sx /= D.kropp.length; sy /= D.kropp.length;
+    for (i = 0; i < 5; i++) {
+      var hx = sx - 12 + i * 5 + (rnd() - 0.5) * 3, hy = sy + (rnd() - 0.5) * 4;
+      g += '<path d="M' + P(hx, hy + 3) + 'L' + P(hx + 3.5, hy - 3) + '" stroke="' + lysKritt + '" stroke-width="1.1" opacity="0.35"/>';
+    }
+    for (i = 0; i < 4; i++) {
+      g += sirkel(sx - 10 + rnd() * 20, sy - 6 + rnd() * 6, 1.4 + rnd() * 1.4, mork2);
+    }
+    g += '<path d="' + kropp + '" fill="none" stroke="' + lysKritt + '" stroke-width="1.2" opacity="0.5" transform="translate(0.8 -0.6)"/>';
+
+    var o = D.oye, m = D.munn;
+    g += '<g class="oye"><circle cx="' + o[0] + '" cy="' + o[1] + '" r="3.4" fill="' + lysKritt + '" stroke="' + mork2 + '" stroke-width="1"/>' +
+      sirkel(o[0] + 0.8, o[1], 1.7, '#2a1f1a') + '</g>';
+    g += '<g class="munn"><ellipse cx="' + m[0] + '" cy="' + m[1] + '" rx="' + (D.tenner ? 5.5 : 3.6) + '" ry="1.8" fill="#2a1f1a"/>';
+    if (D.tenner) {
+      for (i = 0; i < 3; i++) g += '<path d="M' + P(m[0] - 3.5 + i * 3, m[1] - 1.6) + 'l1 2.2l1 -2.2Z" fill="' + lysKritt + '"/>';
+    }
+    g += '</g></g></g>';
+    return svg(s + g);
+  }
+
+  /* ---------- origami ---------- */
+
+  /* Hver flate brettes i trekanter fra midten, og hver trekant får sin
+     egen lysstyrke — lysere oppe til venstre, der lyset kommer fra. Det er
+     hele origamiuttrykket: ingen streker, bare flater som møtes. */
+  function fasett(pkt, hue, lys, metn, rnd) {
+    var cx = 0, cy = 0, s = '', n = pkt.length;
+    pkt.forEach(function (p) { cx += p[0]; cy += p[1]; });
+    cx /= n; cy /= n;
+    for (var i = 0; i < n; i++) {
+      var a = pkt[i], b = pkt[(i + 1) % n];
+      var mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      var l = Math.max(8, Math.min(97, lys + (cx - mx) * 0.3 + (cy - my) * 0.4 + (rnd() - 0.5) * 7));
+      var c = farge(hue, l, metn);
+      s += '<path d="' + mangekant([[cx, cy], a, b]) + '" fill="' + c + '" stroke="' + c + '" stroke-width="0.5" stroke-linejoin="round"/>';
+    }
+    return s;
+  }
+
+  function ring(cx, cy, rx, ry, n, rot) {
+    var p = [];
+    for (var i = 0; i < n; i++) {
+      var a = (i / n) * Math.PI * 2 + (rot || 0) - Math.PI / 2;
+      p.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]);
+    }
+    return p;
+  }
+
+  function hexOye(x, y, r, kull) {
+    if (kull) {
+      return '<g class="oye"><path d="' + mangekant(ring(x, y, r, r, 6)) + '" fill="#1c1a24"/>' +
+        '<rect x="' + tall(x - r * 0.45) + '" y="' + tall(y - r * 0.5) + '" width="' + tall(r * 0.35) + '" height="' + tall(r * 0.35) + '" fill="#fff"/></g>';
+    }
+    return '<g class="oye"><path d="' + mangekant(ring(x, y, r, r, 6)) + '" fill="#fff"/>' +
+      '<path d="' + mangekant(ring(x, y + r * 0.08, r * 0.55, r * 0.55, 6)) + '" fill="#1c1a24"/>' +
+      '<rect x="' + tall(x - r * 0.3) + '" y="' + tall(y - r * 0.35) + '" width="' + tall(r * 0.25) + '" height="' + tall(r * 0.25) + '" fill="#fff"/></g>';
+  }
+
+  function tegnOrigami(rnd, hue) {
+    var dyr = velg(rnd, ['ugle', 'pingvin', 'rev', 'isbjorn', 'reinsdyr', 'snomann']);
+    var s = '', m = '', i;
+    // snøfnugg rundt
+    for (i = 0; i < 4; i++) {
+      var fx = [12, 88, 14, 86][i] + (rnd() - 0.5) * 4, fy = [14, 18, 50, 56][i] + (rnd() - 0.5) * 6, fr = 2 + rnd() * 1.5;
+      var d = '';
+      for (var k = 0; k < 3; k++) {
+        var ang = k * Math.PI / 3;
+        d += 'M' + P(fx - Math.cos(ang) * fr, fy - Math.sin(ang) * fr) + 'L' + P(fx + Math.cos(ang) * fr, fy + Math.sin(ang) * fr);
+      }
+      s += '<path d="' + d + '" stroke="#eaf6ff" stroke-width="0.9" opacity="0.55"/>';
+    }
+    var oransje = 32;
+    var blikk = (rnd() - 0.5) * 2;
+
+    if (dyr === 'ugle') {
+      [-1, 1].forEach(function (sd) {
+        s += fasett([[50 + sd * 14, 38], [50 + sd * 23, 16], [50 + sd * 26, 42]], hue, 42, 50, rnd);
+      });
+      s += fasett(ring(50, 60, 25, 29, 8, Math.PI / 8), hue, 52, 48, rnd);
+      s += fasett(ring(50, 72, 13, 14, 6), hue, 80, 35, rnd);
+      [-1, 1].forEach(function (sd) {
+        s += fasett([[50 + sd * 18, 52], [50 + sd * 28, 66], [50 + sd * 20, 84]], hue, 38, 50, rnd);
+        s += fasett(ring(50 + sd * 10.5, 50, 11, 11, 6), hue, 88, 30, rnd);
+        s += fasett([[50 + sd * 6, 88], [50 + sd * 11, 88], [50 + sd * 8.5, 93]], oransje, 55, 90, rnd);
+      });
+      s += hexOye(39.5, 50, 7, false) + hexOye(60.5, 50, 7, false);
+      m = fasett([[46, 57], [54, 57], [50, 65]], oransje, 58, 95, rnd);
+    } else if (dyr === 'pingvin') {
+      [-1, 1].forEach(function (sd) {
+        s += fasett([[50 + sd * 21, 48], [50 + sd * 34, 68], [50 + sd * 22, 66]], hue, 26, 40, rnd);
+        s += fasett([[50 + sd * 4, 87], [50 + sd * 15, 87], [50 + sd * 9, 93]], oransje, 55, 90, rnd);
+      });
+      s += fasett([[50, 18], [64, 26], [72, 52], [67, 82], [50, 89], [33, 82], [28, 52], [36, 26]], hue, 26, 40, rnd);
+      s += fasett([[50, 38], [61, 48], [63, 70], [50, 84], [37, 70], [39, 48]], hue, 93, 12, rnd);
+      s += fasett([[40, 30], [60, 30], [58, 42], [42, 42]], hue, 90, 12, rnd);
+      s += hexOye(44, 35, 4, false) + hexOye(56, 35, 4, false);
+      [-1, 1].forEach(function (sd) {
+        s += '<ellipse cx="' + (50 + sd * 11) + '" cy="42" rx="2.6" ry="1.5" fill="hsl(345 90% 70%)" opacity="0.7"/>';
+      });
+      m = fasett([[45, 41], [55, 41], [50, 48]], oransje, 58, 95, rnd);
+    } else if (dyr === 'rev') {
+      s += fasett([[62, 80], [84, 60], [92, 72], [80, 90], [64, 90]], hue, 50, 70, rnd);
+      s += fasett([[84, 60], [92, 72], [90, 62]], hue, 94, 10, rnd);
+      s += fasett([[37, 62], [63, 62], [68, 90], [32, 90]], hue, 48, 65, rnd);
+      s += fasett([[42, 66], [58, 66], [56, 86], [44, 86]], hue, 92, 12, rnd);
+      [-1, 1].forEach(function (sd) {
+        s += fasett([[50 + sd * 24, 28], [50 + sd * 19, 8], [50 + sd * 9, 30]], hue, 50, 70, rnd);
+        s += fasett([[50 + sd * 21, 26], [50 + sd * 18.5, 14], [50 + sd * 13, 28]], hue, 22, 40, rnd);
+      });
+      s += fasett([[26, 28], [40, 34], [60, 34], [74, 28], [70, 46], [58, 60], [50, 64], [42, 60], [30, 46]], hue, 52, 72, rnd);
+      [-1, 1].forEach(function (sd) {
+        s += fasett([[50 + sd * 20, 46], [50 + sd * 6, 56], [50, 64], [50 + sd * 4, 52]], hue, 93, 10, rnd);
+      });
+      s += hexOye(40, 42, 4, false) + hexOye(60, 42, 4, false);
+      s += '<path d="' + mangekant([[47, 57], [53, 57], [50, 61]]) + '" fill="#1c1a24"/>';
+      m = '<path d="' + mangekant([[47.5, 63], [52.5, 63], [50, 66]]) + '" fill="#5a1d2a"/>';
+    } else if (dyr === 'isbjorn') {
+      s += fasett(ring(50, 79, 25, 14, 8, Math.PI / 8), hue, 86, 22, rnd);
+      [-1, 1].forEach(function (sd) {
+        s += fasett(ring(50 + sd * 17, 88, 6, 4, 6), hue, 80, 22, rnd);
+        s += fasett(ring(50 + sd * 17, 28, 6.5, 6.5, 6), hue, 84, 22, rnd);
+        s += fasett(ring(50 + sd * 17, 28.5, 3, 3, 6), hue, 60, 30, rnd);
+      });
+      s += fasett(ring(50, 45, 23, 20, 8, Math.PI / 8), hue, 90, 20, rnd);
+      s += fasett(ring(50, 53, 10.5, 7.5, 6), hue, 97, 10, rnd);
+      s += hexOye(41, 40, 3.2, true) + hexOye(59, 40, 3.2, true);
+      s += '<path d="' + mangekant([[46, 49], [54, 49], [50, 53.5]]) + '" fill="#1c1a24"/>';
+      m = '<path d="' + mangekant([[47, 56], [53, 56], [50, 59]]) + '" fill="#5a1d2a"/>';
+    } else if (dyr === 'reinsdyr') {
+      var gevir = '#f2e3c6';
+      [-1, 1].forEach(function (sd) {
+        var gd = 'M' + P(50 + sd * 8, 30) + 'L' + P(50 + sd * 18, 12) + 'M' + P(50 + sd * 13, 21) + 'L' + P(50 + sd * 24, 16) +
+          'M' + P(50 + sd * 16, 15) + 'L' + P(50 + sd * 14, 7) + 'M' + P(50 + sd * 19, 18) + 'L' + P(50 + sd * 28, 10);
+        s += '<path d="' + gd + '" stroke="' + gevir + '" stroke-width="2.6" stroke-linecap="round"/>';
+      });
+      s += fasett([[36, 62], [64, 62], [68, 90], [32, 90]], hue, 42, 45, rnd);
+      [-1, 1].forEach(function (sd) {
+        s += fasett([[50 + sd * 14, 34], [50 + sd * 28, 30], [50 + sd * 16, 42]], hue, 40, 45, rnd);
+      });
+      s += fasett([[37, 28], [63, 28], [66, 46], [58, 66], [42, 66], [34, 46]], hue, 46, 45, rnd);
+      s += fasett([[42, 52], [58, 52], [56, 66], [44, 66]], hue, 70, 35, rnd);
+      s += hexOye(42, 42, 4, false) + hexOye(58, 42, 4, false);
+      var rodNese = rnd() > 0.5;
+      s += '<path d="' + mangekant(ring(50, 56, 4.5, 3.8, 6)) + '" fill="' + (rodNese ? 'hsl(355 90% 55%)' : '#1c1a24') + '"/>' +
+        (rodNese ? '<circle cx="50" cy="56" r="7" fill="hsl(355 100% 60%)" opacity="0.25"/>' : '');
+      m = '<path d="' + mangekant([[47, 61.5], [53, 61.5], [50, 64.5]]) + '" fill="#5a1d2a"/>';
+    } else {
+      // snømann med skjerf, hatt og gulrot
+      s += fasett(ring(50, 76, 21, 15, 8, Math.PI / 8), hue, 92, 25, rnd);
+      s += fasett(ring(50, 54, 16, 12, 8, Math.PI / 8), hue, 93, 25, rnd);
+      s += fasett(ring(50, 34, 13, 11.5, 8, Math.PI / 8), hue, 94, 25, rnd);
+      s += fasett([[36, 44], [64, 44], [62, 49], [38, 49]], (hue + 180) % 360, 55, 80, rnd);
+      s += fasett([[56, 46], [62, 46], [64, 60], [58, 58]], (hue + 180) % 360, 50, 80, rnd);
+      s += fasett([[38, 24], [62, 24], [62, 27], [38, 27]], 250, 18, 15, rnd);
+      s += fasett([[42, 25], [58, 25], [56, 9], [44, 9]], 250, 20, 15, rnd);
+      s += '<rect x="42.6" y="19" width="14.8" height="3" fill="' + farge(hue, 55, 80) + '"/>';
+      s += hexOye(45, 31, 2.6, true) + hexOye(55, 31, 2.6, true);
+      s += fasett([[49, 34.5], [49, 38], [60, 36.5]], oransje, 55, 95, rnd);
+      [58, 64].forEach(function (y) { s += '<path d="' + mangekant(ring(50, y, 1.8, 1.8, 6)) + '" fill="#1c1a24"/>'; });
+      for (i = 0; i < 5; i++) {
+        var t = i / 4, kx = 44.5 + t * 11, ky = 40.5 + Math.sin(t * Math.PI) * 2;
+        m += '<rect x="' + tall(kx - 0.9) + '" y="' + tall(ky - 0.9) + '" width="1.8" height="1.8" fill="#1c1a24"/>';
+      }
+    }
+    return svg(s + '<g class="munn">' + m + '</g>');
+  }
+
+  var STILER = {
+    drage: tegnDrage, pirat: tegnPirat, metall: tegnMetall,
+    godteri: tegnGodteri, dino: tegnDino, origami: tegnOrigami
+  };
+
   /* ---------- selve monsteret ---------- */
 
   function tegn(noekkel, hue, opsjoner) {
@@ -922,6 +1792,7 @@ var Monstre = (function () {
     };
 
     if (o.tema === 'pixel') return tegnPixel(rnd, hue, f);
+    if (STILER[o.tema]) return STILER[o.tema](rnd, hue, f, 'm' + fro(noekkel).toString(36));
 
     var k = (T ? velg(rnd, T.former) : FORMER[Math.floor(rnd() * FORMER.length)])(rnd, f);
     var a = k.ansikt;
