@@ -1817,6 +1817,249 @@ var Motor = (function () {
     return Math.min(n, d.maksSteg || 16);
   }
 
+  /* ---------- drumpadet ----------
+
+     Tjue korte lyder barna kan slå inn når de vil, oppå sangen som går.
+     Øverste rad er trommer og DJ-lyder, nederste rad er det som får en
+     seksåring til å le: promp, rap, dyr, tuting og sirene.
+
+     Lydene har litt tilfeldighet i seg. Tjue prompelyder på rad som låter
+     helt likt blir kjedelig fort; tjue som alle er litt forskjellige, blir
+     det ikke. */
+
+  function kubjelle(c, t, ut) {
+    var f = c.createBiquadFilter(), g = hylster(c, t, 0.4, 0.002, 0.3);
+    f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 1.2;
+    [562, 845].forEach(function (hz) {
+      var o = c.createOscillator();
+      o.type = 'square'; o.frequency.value = hz;
+      o.connect(f); o.start(t); o.stop(t + 0.34);
+    });
+    f.connect(g); g.connect(ut);
+  }
+
+  function cymbal(c, t, ut) {
+    stoyStot(c, t, ut, 0.35, 'highpass', 5000, 0, 1.4);
+    stoyStot(c, t, ut, 0.25, 'bandpass', 8000, 1, 0.9);
+    var f = c.createBiquadFilter(), g = hylster(c, t, 0.05, 0.001, 1.0);
+    f.type = 'highpass'; f.frequency.value = 6000;
+    [3150, 4270, 5690, 7420].forEach(function (hz) {
+      var o = c.createOscillator();
+      o.type = 'square'; o.frequency.value = hz;
+      o.connect(f); o.start(t); o.stop(t + 1.05);
+    });
+    f.connect(g); g.connect(ut);
+  }
+
+  function tom(c, t, ut) {
+    fall(c, t, ut, 0.8, 210, 120, 0.12, 0.4);
+    stoyStot(c, t, ut, 0.15, 'bandpass', 1200, 1, 0.03);
+  }
+
+  function skratsj(c, t, ut) {
+    // «vikke-vikke»: platen dras fram og tilbake, to ganger
+    var s = stoyKilde(c, t, 0.4), f = c.createBiquadFilter(), g = c.createGain();
+    var o = c.createOscillator(), og = c.createGain();
+    f.type = 'bandpass'; f.Q.value = 4;
+    o.type = 'sawtooth';
+    g.gain.value = 0; og.gain.value = 0;
+    [0, 0.18].forEach(function (fra) {
+      var a = t + fra;
+      f.frequency.setValueAtTime(700, a);
+      f.frequency.exponentialRampToValueAtTime(3200, a + 0.07);
+      f.frequency.exponentialRampToValueAtTime(600, a + 0.15);
+      o.frequency.setValueAtTime(180, a);
+      o.frequency.exponentialRampToValueAtTime(650, a + 0.07);
+      o.frequency.exponentialRampToValueAtTime(140, a + 0.15);
+      [g, og].forEach(function (gg, i) {
+        gg.gain.setValueAtTime(0.0001, a);
+        gg.gain.linearRampToValueAtTime(i ? 0.2 : 1.6, a + 0.02);
+        gg.gain.linearRampToValueAtTime(0.0001, a + 0.15);
+      });
+    });
+    s.connect(f); f.connect(g); g.connect(ut);
+    o.connect(og); og.connect(ut);
+    o.start(t); o.stop(t + 0.4); s.stop(t + 0.4);
+  }
+
+  function lufthorn(c, t, ut) {
+    // DJ-hornet: ba-ba-baaaa
+    var f = c.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 2600; f.connect(ut);
+    [[0, 0.1], [0.14, 0.1], [0.28, 0.55]].forEach(function (d) {
+      var a = t + d[0], g = holdt(c, a, 0.12, 0.01, d[1], 0.06);
+      [350, 352.5, 441, 525].forEach(function (hz) {
+        var o = c.createOscillator();
+        o.type = 'sawtooth'; o.frequency.value = hz;
+        o.connect(g); o.start(a); o.stop(g.slutt);
+      });
+      g.connect(f);
+    });
+  }
+
+  function promp(c, t, ut) {
+    /* En promp er en dyp, ujevn tone som hakkes opp i små støt. Både
+       lengden, tonen og hvor fort den «hakker» trekkes på nytt hver gang. */
+    var lengde = 0.35 + Math.random() * 0.45, hz = 70 + Math.random() * 45;
+    var o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+    var am = c.createOscillator(), amDybde = c.createGain(), bunn = c.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(hz, t);
+    for (var tt = 0.03; tt < lengde; tt += 0.03 + Math.random() * 0.03) {
+      o.frequency.setValueAtTime(hz * (0.8 + Math.random() * 0.45), t + tt);
+    }
+    f.type = 'lowpass'; f.frequency.value = 520; f.Q.value = 3;
+    am.type = 'square'; am.frequency.value = 22 + Math.random() * 18;
+    amDybde.gain.value = 0.5; bunn.gain.value = 0.5;
+    am.connect(amDybde); amDybde.connect(bunn.gain);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.6, t + 0.03);
+    g.gain.setValueAtTime(0.6, t + lengde * 0.7);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + lengde);
+    o.connect(f); f.connect(bunn); bunn.connect(g); g.connect(ut);
+    o.start(t); am.start(t); o.stop(t + lengde + 0.02); am.stop(t + lengde + 0.02);
+    stoyStot(c, t, ut, 0.12, 'lowpass', 400, 0, lengde * 0.8);
+  }
+
+  function rap(c, t, ut) {
+    var lengde = 0.45 + Math.random() * 0.2;
+    var o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+    var am = c.createOscillator(), dybde = c.createGain(), bunn = c.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(115, t);
+    o.frequency.exponentialRampToValueAtTime(78, t + lengde);
+    f.type = 'bandpass'; f.frequency.value = 480; f.Q.value = 2;
+    am.frequency.value = 31; dybde.gain.value = 0.45; bunn.gain.value = 0.55;
+    am.connect(dybde); dybde.connect(bunn.gain);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(2.2, t + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + lengde);
+    o.connect(f); f.connect(bunn); bunn.connect(g); g.connect(ut);
+    o.start(t); am.start(t); o.stop(t + lengde + 0.02); am.stop(t + lengde + 0.02);
+  }
+
+  /* Dyrelyder: en sagtann (stemmebåndene) gjennom et filter (munnen) som
+     beveger seg. Det er munnformen som gjør «møø» til en ku og «mjau» til
+     en katt — tonen alene gjør det ikke. */
+  function stemme(c, t, ut, v, lengde, tone0, tone1, munn0, munn1, q) {
+    var o = c.createOscillator(), f = c.createBiquadFilter(), g = holdt(c, t, v, 0.05, lengde * 0.75, lengde * 0.25);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(tone0, t);
+    o.frequency.exponentialRampToValueAtTime(tone1, t + lengde);
+    f.type = 'bandpass'; f.Q.value = q || 2;
+    f.frequency.setValueAtTime(munn0, t);
+    f.frequency.exponentialRampToValueAtTime(munn1, t + lengde * 0.6);
+    o.connect(f); f.connect(g); g.connect(ut);
+    o.start(t); o.stop(g.slutt);
+    return o;
+  }
+
+  function moo(c, t, ut) {
+    var o = stemme(c, t, ut, 1.1, 0.95, 135, 105, 280, 750, 2.5);
+    var lfo = c.createOscillator(), d = c.createGain();
+    lfo.frequency.value = 5; d.gain.value = 3;
+    lfo.connect(d); d.connect(o.frequency); lfo.start(t); lfo.stop(t + 1.2);
+  }
+
+  function voff(c, t, ut) {
+    [0, 0.2].forEach(function (fra) {
+      stemme(c, t + fra, ut, 1.2, 0.13, 420, 240, 1300, 700, 2);
+      stoyStot(c, t + fra, ut, 0.25, 'bandpass', 1500, 1, 0.08);
+    });
+  }
+
+  function mjau(c, t, ut) {
+    var o = stemme(c, t, ut, 0.8, 0.6, 520, 480, 800, 1800, 3);
+    o.frequency.setValueAtTime(520, t);
+    o.frequency.linearRampToValueAtTime(820, t + 0.22);
+    o.frequency.linearRampToValueAtTime(470, t + 0.6);
+  }
+
+  function kvakk(c, t, ut) {
+    [0, 0.2].forEach(function (fra) {
+      var o = c.createOscillator(), f = c.createBiquadFilter(), g = hylster(c, t + fra, 2, 0.005, 0.13);
+      o.type = 'square';
+      o.frequency.setValueAtTime(330, t + fra);
+      o.frequency.exponentialRampToValueAtTime(250, t + fra + 0.13);
+      f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 5;
+      o.connect(f); f.connect(g); g.connect(ut);
+      o.start(t + fra); o.stop(t + fra + 0.16);
+    });
+  }
+
+  function boing(c, t, ut) {
+    var o = c.createOscillator(), g = hylster(c, t, 0.5, 0.005, 0.6), lfo = c.createOscillator(), d = c.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(140, t);
+    o.frequency.exponentialRampToValueAtTime(420, t + 0.08);
+    lfo.frequency.value = 13;
+    d.gain.setValueAtTime(90, t);
+    d.gain.exponentialRampToValueAtTime(4, t + 0.6);
+    lfo.connect(d); d.connect(o.frequency);
+    o.connect(g); g.connect(ut);
+    o.start(t); lfo.start(t); o.stop(t + 0.62); lfo.stop(t + 0.62);
+  }
+
+  function tut(c, t, ut) {
+    var f = c.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 2000; f.connect(ut);
+    [0, 0.26].forEach(function (fra) {
+      var g = holdt(c, t + fra, 0.13, 0.01, 0.18, 0.03);
+      [400, 505].forEach(function (hz) {
+        var o = c.createOscillator();
+        o.type = 'square'; o.frequency.value = hz;
+        o.connect(g); o.start(t + fra); o.stop(g.slutt);
+      });
+      g.connect(f);
+    });
+  }
+
+  function sirene(c, t, ut) {
+    var o = c.createOscillator(), o2 = c.createOscillator(), g2 = c.createGain(), g = holdt(c, t, 0.16, 0.05, 1.2, 0.15);
+    o.type = 'sine'; o2.type = 'square'; g2.gain.value = 0.15;
+    [o, o2].forEach(function (x) {
+      x.frequency.setValueAtTime(600, t);
+      x.frequency.linearRampToValueAtTime(1150, t + 0.3);
+      x.frequency.linearRampToValueAtTime(600, t + 0.6);
+      x.frequency.linearRampToValueAtTime(1150, t + 0.9);
+      x.frequency.linearRampToValueAtTime(600, t + 1.25);
+    });
+    o.connect(g); o2.connect(g2); g2.connect(g); g.connect(ut);
+    o.start(t); o2.start(t); o.stop(g.slutt); o2.stop(g.slutt);
+  }
+
+  function kyss(c, t, ut) {
+    // «mmm-ÆH»: leppene som skilles
+    stemme(c, t, ut, 0.4, 0.12, 220, 200, 300, 350, 2);
+    stoyStot(c, t + 0.12, ut, 1.3, 'bandpass', 2600, 2, 0.03);
+    var o = tone(c, t + 0.12, ut, 'sine', 1400, 0.5, 0.001, 0.05);
+    o.frequency.setValueAtTime(1400, t + 0.12);
+    o.frequency.exponentialRampToValueAtTime(500, t + 0.16);
+  }
+
+  var PADS = [
+    { id: 'p-bom', navn: 'BOM', emoji: '💥', hue: 348, lyd: function (c, t, ut) { kick(c, t, ut, 1); } },
+    { id: 'p-klapp', navn: 'KLAPP', emoji: '👏', hue: 32, lyd: function (c, t, ut) { klapp(c, t, ut, 2); } },
+    { id: 'p-smell', navn: 'SMELL', emoji: '🥁', hue: 12, lyd: function (c, t, ut) { skarp(c, t, ut, 0.9); } },
+    { id: 'p-tss', navn: 'TSS', emoji: '🎩', hue: 188, lyd: function (c, t, ut) { stoyStot(c, t, ut, 0.4, 'highpass', 7000, 0, 0.25); } },
+    { id: 'p-kubjelle', navn: 'KUBJELLE', emoji: '🔔', hue: 50, lyd: kubjelle },
+    { id: 'p-cymbal', navn: 'CYMBAL', emoji: '📀', hue: 60, lyd: cymbal },
+    { id: 'p-tom', navn: 'TOM', emoji: '🪘', hue: 20, lyd: tom },
+    { id: 'p-skratsj', navn: 'SKRATSJ', emoji: '💿', hue: 280, lyd: skratsj },
+    { id: 'p-laser', navn: 'LASER', emoji: '⚡', hue: 318, lyd: function (c, t, ut) { laser(c, t, ut, 1); } },
+    { id: 'p-horn', navn: 'HORN', emoji: '📯', hue: 200, lyd: lufthorn },
+    { id: 'p-promp', navn: 'PROMP', emoji: '💨', hue: 90, lyd: promp },
+    { id: 'p-rap', navn: 'RAP', emoji: '🤢', hue: 110, lyd: rap },
+    { id: 'p-moo', navn: 'MØØ', emoji: '🐮', hue: 30, lyd: moo },
+    { id: 'p-voff', navn: 'VOFF', emoji: '🐶', hue: 40, lyd: voff },
+    { id: 'p-mjau', navn: 'MJAU', emoji: '🐱', hue: 45, lyd: mjau },
+    { id: 'p-kvakk', navn: 'KVAKK', emoji: '🦆', hue: 55, lyd: kvakk },
+    { id: 'p-boing', navn: 'BOING', emoji: '🦘', hue: 160, lyd: boing },
+    { id: 'p-tut', navn: 'TUT', emoji: '🚗', hue: 0, lyd: tut },
+    { id: 'p-sirene', navn: 'SIRENE', emoji: '🚨', hue: 220, lyd: sirene },
+    { id: 'p-kyss', navn: 'KYSS', emoji: '😘', hue: 330, lyd: kyss }
+  ];
+
   /* ---------- effekter ---------- */
 
   /* Kurvene har et ODDE antall punkter, og x regnes ut mot n-1.
@@ -2242,6 +2485,23 @@ var Motor = (function () {
     p.sistSpilt = t;
   }
 
+  /* Drumpadet går rett ut i miksen gjennom én felles kjede. Lyden starter så
+     fort det går etter trykket, ikke på neste slag: et barn som trykker skal
+     høre at DE gjorde det, i det øyeblikket de gjorde det. */
+  var padRigg = null;
+  function pad(id) {
+    start();
+    if (!padRigg) {
+      padRigg = ctx.createGain();
+      padRigg.gain.value = 0.9;
+      padRigg.connect(rigg.master);
+    }
+    for (var i = 0; i < PADS.length; i++) {
+      if (PADS[i].id === id) { PADS[i].lyd(ctx, ctx.currentTime + 0.005, padRigg); return true; }
+    }
+    return false;
+  }
+
   /* Forhåndslytting på opptaksskjermen: samme lyd, samme effektkjede, men
      utenfor brettet. */
   var proveRigg = null, proveFor = null;
@@ -2336,7 +2596,7 @@ var Motor = (function () {
     start: start, spill: spill, stopp: stopp, demp: demp,
     settBpm: settBpm, settGrunnbeat: settGrunnbeat,
     plassEndret: plassEndret,
-    smak: smak, prov: prov,
+    smak: smak, prov: prov, pad: pad, PADS: PADS,
     eksporter: eksporter, sikreKjeder: sikreKjeder,
     get ctx() { return ctx; },
     get rigg() { return rigg; },

@@ -3,7 +3,7 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v13';
+var VERSJON = 'v14';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 200;
 var VIS_FORST = 23;             // med TA OPP blir det fire hele rader på et nettbrett
@@ -267,6 +267,7 @@ function tegnBrett() {
     beats.map(kortHtml).join('') + '</div></div>';
   ui.nyVerden = false;
 
+  h += padSeksjon();
   h += stemmeSeksjon(stemmer);
 
   h += sangSeksjon();
@@ -274,6 +275,26 @@ function tegnBrett() {
 
   E('app').innerHTML = h;
   finnElementer();
+}
+
+/* Drumpadet: tjue knapper barna slår på mens sangen går — trommer og DJ-lyder
+   øverst, promp, dyr og tuting nederst. Det ligger over deres egne lyder,
+   der fingrene allerede er, og er ti på rad på et nettbrett så hele settet
+   får plass uten å rulle. */
+function padSeksjon() {
+  return '<div class="seksjon"><div class="seksjonstopp"><h2>DRUMPAD</h2></div><div class="pads">' +
+    Motor.PADS.map(function (p) {
+      return '<button class="pad" data-h="pad" data-id="' + p.id + '" style="--hue:' + p.hue + '">' +
+        '<span>' + p.emoji + '</span>' + p.navn + '</button>';
+    }).join('') + '</div></div>';
+}
+
+function slaPad(el) {
+  Motor.pad(el.dataset.id);
+  // blinket startes på nytt ved hvert slag, også når barnet trommer fort
+  el.classList.remove('slag');
+  void el.offsetWidth;
+  el.classList.add('slag');
 }
 
 /* Barnas egne lyder, lagt opp for at det skal gå an å ha mange.
@@ -955,6 +976,9 @@ var trykk = null;
 
 document.addEventListener('pointerdown', function (e) {
   var el = e.target.closest ? e.target.closest('[data-h]') : null;
+  /* Drumpadet spiller på pointerdown, én gang per finger. Flere fingre på
+     hver sin knapp gir flere lyder samtidig — slik et ekte padsett virker. */
+  if (el && el.dataset.h === 'pad') { slaPad(el); return; }
   if (!el || el.dataset.h !== 'veksle') return;
   trykk = { id: el.dataset.id, x: e.clientX, y: e.clientY, angret: false };
   veksle(trykk.id);
@@ -974,6 +998,8 @@ document.addEventListener('click', function (e) {
   var el = e.target.closest ? e.target.closest('[data-h]') : null;
   if (!el) return;
   var h = el.dataset.h;
+  // tastatur (Enter/mellomrom) gir et klikk uten pointerdown først
+  if (h === 'pad') { if (e.detail === 0) slaPad(el); return; }
   if (h === 'veksle' || h === 'navn' || h === 'nyttNavn' || h === 'hodetelefoner') return;
   e.preventDefault();
   kjor(h, el);

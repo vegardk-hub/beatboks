@@ -80,6 +80,15 @@ Monstre uten tema — barnas egne lyder og BOOM
 BAP — trekker nøyaktig like mange terningkast som før, så ingen eksisterende
 figur har forandret seg. De nye kroppsformene står derfor utenfor `FORMER`.
 
+**Drumpadet spiller med én gang, ikke på neste slag.** Tjue knapper over
+barnas egne lyder — trommer og DJ-lyder øverst, promp, rap, dyr, tuting og
+sirene nederst (`PADS` i `audio.js`). De reagerer på pointerdown, én lyd per
+finger, så flere fingre gir flere lyder samtidig. Lyden starter i det
+øyeblikket fingeren treffer: et barn som trykker skal høre at det var DE,
+og en lyd som ventet på takten ville føltes som om trykket ikke virket.
+Flere av lydene trekker litt tilfeldighet hver gang, så tjue promper på rad
+ikke låter helt like.
+
 **Mikrofonens «hjelp» er skrudd av** (`echoCancellation`, `noiseSuppression`,
 `autoGainControl` = `false`). Støyfjerning spiser nettopp tsss- og pff-lydene
 som *er* beatboxing, og automatisk volumkontroll flater ut slagene.

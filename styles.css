@@ -362,6 +362,63 @@ body {
 .flere span { font-size: 11px; color: var(--lime); letter-spacing: 1px; font-weight: 700; }
 .flere:active { transform: scale(0.98); }
 
+/* ---------- drumpadet ---------- */
+
+/* Ti på rad på nettbrett (to rader), fem på rad på telefon. Knappene er
+   mindre enn monsterkortene, men fortsatt store nok for en sjuårings finger
+   på et nettbrett. */
+.pads {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+@media (min-width: 620px) {
+  .pads { grid-template-columns: repeat(10, 1fr); gap: 7px; }
+}
+.pad {
+  aspect-ratio: 1;
+  min-width: 0;
+  border-radius: 12px;
+  border: 2px solid hsl(var(--hue) 90% 60% / 0.55);
+  background:
+    radial-gradient(80% 70% at 50% 30%, hsl(var(--hue) 85% 28% / 0.85), transparent 75%),
+    rgba(12, 6, 26, 0.78);
+  color: hsl(var(--hue) 100% 82%);
+  font-family: inherit;
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 2px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.pad span { font-size: clamp(20px, 6vw, 30px); line-height: 1; }
+@media (min-width: 620px) { .pad span { font-size: clamp(18px, 2.7vw, 28px); } }
+@media (min-width: 900px) { .pad { font-size: 10px; } }
+/* lyser opp i sin egen farge i det den slås, og faller tilbake */
+.pad.slag { animation: padSlag 0.28s ease-out; }
+@keyframes padSlag {
+  0% {
+    transform: scale(0.86);
+    background: hsl(var(--hue) 100% 58%);
+    border-color: hsl(var(--hue) 100% 80%);
+    box-shadow: 0 0 24px hsl(var(--hue) 100% 60%);
+    color: #fff;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pad.slag { animation-duration: 0.12s; }
+}
+
 /* ---------- steglys ---------- */
 
 /* Taktlinjen ligger øverst, rett under navnet, og hver prikk har sin egen
