@@ -322,6 +322,46 @@ body {
 .kort.nytt .mikro { font-size: 34px; }
 .kort.nytt .navn { color: var(--cyan); font-size: 12px; }
 
+/* Når alle 200 plassene er brukt, blir TA OPP-flisen en feiring i stedet for
+   en tom plass. Den sier også hva som skal til for å lage flere. */
+.kort.nytt.fullt { border-color: rgba(196, 255, 62, 0.6); background: rgba(196, 255, 62, 0.07); cursor: default; }
+.kort.nytt.fullt .navn { color: var(--lime); }
+.fulltTekst { font-size: 10px; color: var(--ink-svak); text-align: center; padding: 0 6px; font-weight: 600; }
+
+.seksjon h2 .antall {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(45, 226, 230, 0.15);
+  color: var(--cyan);
+  letter-spacing: 1px;
+}
+
+/* «Vis alle» er en full rad, ikke en liten lenke: med mange lyder er det den
+   de trenger for å finne igjen en gammel favoritt. */
+.flere {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px;
+  border-radius: var(--r);
+  border: 2px dashed rgba(45, 226, 230, 0.5);
+  background: rgba(45, 226, 230, 0.06);
+  color: var(--cyan);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.flere span { font-size: 11px; color: var(--lime); letter-spacing: 1px; font-weight: 700; }
+.flere:active { transform: scale(0.98); }
+
 /* ---------- steglys ---------- */
 
 /* Taktlinjen ligger øverst, rett under navnet, og hver prikk har sin egen

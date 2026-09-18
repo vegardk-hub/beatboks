@@ -147,7 +147,12 @@ var Analyse = (function () {
     var holderSek = holder * b.rammeTid;
 
     t.deler = { lav: pL, mid: pM, hoy: pH, holder: holderSek };
+    return kategori(pL, pM, pH, holderSek);
+  }
 
+  /* Selve avgjørelsen, skilt ut så den kan brukes både på ett anslag og på en
+     hel lyd som ikke har noe tydelig anslag i det hele tatt. */
+  function kategori(pL, pM, pH, holderSek) {
     if (pL > 0.42) return 'dunder';                      // dypt trykk
     /* Lyst og kort er en hi-hat, lyst og langtrukkent er et rytmeegg. Skillet
        går ved hvor lenge lufta holder seg oppe — «ts» mot «tsssss». */
@@ -155,6 +160,87 @@ var Analyse = (function () {
     if (pH > 0.2 && pM > 0.22) return 'skarp';           // bredbåndet knekk
     if (pM > 0.45) return 'rare';
     return 'skarp';
+  }
+
+  /* ---------- én enkelt lyd ---------- */
+
+  /* Tonehøyde ved autokorrelasjon i det kraftigste partiet av lyden. Det skiller
+     et nynnet «mmmm» (tydelig tone) fra et «shhh» (bare luft), og en pipestemme
+     fra en brummebass. Vinduet må være lengre enn den lengste perioden vi leter
+     etter, ellers ser vi aldri en hel svingning av de dype tonene. */
+  function tonehoyde(d, sr) {
+    var vindu = Math.min(2048, d.length);
+    var minLag = Math.floor(sr / 1000), maxLag = Math.floor(sr / 70);
+    if (vindu <= maxLag + 16) return { tonal: false, hz: 0, styrke: 0 };
+    var start = 0, best = -1, i, k;
+    for (i = 0; i + vindu <= d.length; i += 512) {
+      var e = 0;
+      for (k = 0; k < vindu; k += 4) e += d[i + k] * d[i + k];
+      if (e > best) { best = e; start = i; }
+    }
+    var r0 = 0;
+    for (k = 0; k < vindu; k++) r0 += d[start + k] * d[start + k];
+    if (r0 <= 0) return { tonal: false, hz: 0, styrke: 0 };
+    var r = new Float32Array(maxLag + 2), maks = 0, lag;
+    for (lag = minLag; lag <= maxLag + 1; lag++) {
+      var sum = 0;
+      for (k = 0; k + lag < vindu; k++) sum += d[start + k] * d[start + k + lag];
+      r[lag] = sum / r0;
+      if (lag <= maxLag && r[lag] > maks) maks = r[lag];
+    }
+    /* Den FØRSTE toppen som er nesten like høy som den høyeste, ikke den
+       høyeste. En tone gir topper ved hvert eneste multiplum av perioden, og
+       den høyeste kan godt ligge langt ute: en pipestemme på 620 Hz ble målt
+       til 78 Hz, åtte perioder ut, og fikk et brummenavn. Uten korreksjon for
+       antall ledd synker toppene utover av seg selv, og da vinner den første. */
+    var besteLag = 0;
+    for (lag = minLag + 1; lag <= maxLag; lag++) {
+      if (r[lag] >= maks * 0.9 && r[lag] >= r[lag - 1] && r[lag] >= r[lag + 1]) {
+        besteLag = lag;
+        break;
+      }
+    }
+    var styrke = besteLag ? r[besteLag] : 0;
+    return { tonal: styrke > 0.45, hz: besteLag ? sr / besteLag : 0, styrke: styrke };
+  }
+
+  /* Hva slags lyd er dette? Brukes til å gi lyden et navn som passer. Svaret
+     er ikke én kategori men et lite bilde: hvor den ligger i frekvens, hvor
+     lenge den varer, om den har tone, og hvilke slag den består av. */
+  function beskriv(buffer) {
+    var d = buffer.getChannelData(0), sr = buffer.sampleRate;
+    var b = baand(d, sr);
+    if (b.rammer < 4) return null;
+
+    var treff = anslag(b, 0.12), i;
+    for (i = treff.length - 1; i >= 0; i--) {
+      var k = kjennIgjen(b, treff[i]);
+      if (!k) treff.splice(i, 1); else treff[i].kategori = k;
+    }
+
+    var sL = 0, sM = 0, sH = 0, topp = 0, energi = new Float32Array(b.rammer);
+    for (i = 0; i < b.rammer; i++) {
+      sL += b.lav[i]; sM += b.mid[i]; sH += b.hoy[i];
+      energi[i] = b.lav[i] + b.mid[i] + b.hoy[i];
+      if (energi[i] > topp) topp = energi[i];
+    }
+    var sum = sL + sM + sH || 1;
+    /* Hvor lenge lyden holder seg oppe, ikke hvor lang fila er. En kort «bum»
+       med lang etterklang og et langt «mmmmm» kan ha samme lengde på fila. */
+    var oppe = 0;
+    for (i = 0; i < b.rammer; i++) if (energi[i] > topp * 0.25) oppe++;
+
+    var t = tonehoyde(d, sr);
+    var andel = { lav: sL / sum, mid: sM / sum, hoy: sH / sum };
+    return {
+      varighet: d.length / sr,
+      holder: oppe * b.rammeTid,
+      andel: andel,
+      tonal: t.tonal, hz: t.hz,
+      treff: treff,
+      // hele lyden sett under ett, for når den ikke har noe tydelig anslag
+      helhet: kategori(andel.lav, andel.mid, andel.hoy, oppe * b.rammeTid)
+    };
   }
 
   /* ---------- legg slagene på rutenettet ---------- */
@@ -335,5 +421,5 @@ var Analyse = (function () {
     };
   }
 
-  return { tilBeat: tilBeat, utled: utled, RYTMEINSTRUMENTER: RYTMEINSTRUMENTER };
+  return { tilBeat: tilBeat, utled: utled, beskriv: beskriv, RYTMEINSTRUMENTER: RYTMEINSTRUMENTER };
 })();

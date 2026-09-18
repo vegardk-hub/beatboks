@@ -662,9 +662,19 @@ var Motor = (function () {
     return ctx;
   }
 
+  /* Signalkjedene følger av/på-tilstanden: trommene har alltid sin (de er
+     få), mens en stemme bare har kjede så lenge den står på.
+
+     Det er det som gjør 200 stemmer mulig. En kjede koster selv i stillhet —
+     HULE regner konvolusjon på hver eneste lydblokk, ROBOT og ROMVESEN har
+     oscillatorer som aldri stopper. To hundre av dem ville kvalt prosessoren
+     på et nettbrett, selv om bare tre av dem spilte. */
   function sikreKjeder() {
     for (var i = 0; i < plasser.length; i++) {
-      if (!plasser[i].rigg) plasser[i].rigg = byggKjede(ctx, plasser[i], rigg.master, bpm);
+      var p = plasser[i];
+      var skal = p.kind === 'trommer' || p.paa;
+      if (skal && !p.rigg) p.rigg = byggKjede(ctx, p, rigg.master, bpm);
+      else if (!skal && p.rigg) { rivKjede(p.rigg); p.rigg = null; }
     }
   }
 
@@ -737,7 +747,10 @@ var Motor = (function () {
      stille. Ellers tror barnet at monsteret er ødelagt. */
   function smak(p) {
     start();
-    sikreKjeder();
+    /* Bare denne plassens egen kjede, ikke alle. En avslått stemme som prøves
+       i stell-arket skal høres uten å bli skrudd på — og den globale
+       oppryddingen ville revet kjeden rett før lyden skulle gjennom den. */
+    if (!p.rigg) p.rigg = byggKjede(ctx, p, rigg.master, bpm);
     var t = ctx.currentTime + 0.02, sl = 60 / bpm / 4;
     if (p.kind === 'trommer') {
       var d = p.def;

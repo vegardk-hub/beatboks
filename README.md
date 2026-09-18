@@ -14,6 +14,7 @@ HTTPS (eller `localhost`) og den virker.
 | `audio.js` | Lydmotoren: trommesyntese, effektkjeder, taktklokke, eksport |
 | `record.js` | Mikrofon, etterarbeid på opptaket, lagring i IndexedDB |
 | `analyse.js` | Hører på et opptak og skriver det ned som en beat |
+| `navn.js` | Gir hver lyd et lydmalende navn ut fra hvordan den låter |
 | `monsters.js` | Tegner monstrene prosedyrisk som neon-SVG |
 | `visual.js` | Bakgrunnen og visualiseringsringen under opptak |
 | `app.js` | Skjermer, tilstand og hendelser |
@@ -55,6 +56,25 @@ oppfører figurene seg av seg selv slik de skal, fordi animasjonen leser
 lydnivået fra hvert monsters egen analysenode. Sangene ligger nederst på
 brettet og ikke bak en knapp: et barn som må huske at det finnes en skjerm et
 sted, spiller ikke av sangen sin igjen.
+
+**Opptil 200 egne lyder, og det koster bare det som spiller.** En stemme har
+lydkjede bare så lenge den står på, og opptaket dekodes først når den skrus på.
+Det er ikke optimalisering for sin egen skyld: HULE regner konvolusjon på hver
+lydblokk og ROBOT og ROMVESEN har oscillatorer som aldri stopper, også i
+stillhet. Med kjeder for alle 200 ville et nettbrett hatt det tilsvarende av
+førti stemmer i gang permanent. Målt her: 40 samtidige stemmer regnes fem
+ganger raskere enn sanntid, og oppstart med 200 lagrede lyder tar 43 ms mot
+23 ms med ingen.
+
+**Appen gir lydene navn selv**, lydmalende ut fra hvordan de låter (`navn.js`):
+en lyd som består av flere slag blir slagene etter hverandre (BOM-TI-BOM,
+PAF-TI), en lang lyd får navn etter tone og klang (MMMM, VIIIU, KSSJ), og ett
+kort slag etter hva slags slag det var (BOOM, KLASK, TJIK). Lang lyd sjekkes
+før rytme — et sus svinger hele tiden litt og ville ellers sett ut som mange
+slag. Tonehøyden tar den *første* nesten-høyeste toppen i autokorrelasjonen,
+ikke den høyeste; ellers ble en pipestemme på 620 Hz målt til 78 Hz, åtte
+perioder ut. Lyder som fortsatt heter LYD 1, LYD 2 … fra før navnefunksjonen
+kom, døpes om ved oppstart. Navn barnet har satt selv, røres aldri.
 
 **Egen beat: tempoet gjettes ikke.** Barna beatboxer i fire takter mens
 steglysene løper som metronom, så appen vet allerede hvor raskt det går og

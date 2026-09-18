@@ -3,9 +3,10 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v8';
+var VERSJON = 'v9';
 var NOKKEL = 'beatboks-v1';
-var MAKS_STEMMER = 8;
+var MAKS_STEMMER = 200;
+var VIS_FORST = 23;             // med TA OPP blir det fire hele rader på et nettbrett
 var EKSPORT_TAKTER = 8;
 var EGEN_ID = 'minbeat';
 var EGEN_TAKTER = 4;           // fire takter blir ca. ti sekunder i vanlig tempo
@@ -14,7 +15,7 @@ var UTKAST_ID = 'utkast';      // beaten som spiller mens barnet redigerer karte
 var S = null;
 var ui = {
   skjerm: 'start', opptak: 'klar', nyLyd: null, nyId: null, stellId: null, ark: null,
-  beatModus: false, beatSvar: null, beatFor: null, aktivSang: null
+  beatModus: false, beatSvar: null, beatFor: null, aktivSang: null, visAlleLyder: false
 };
 
 /* Merket «denne sangen spiller nå» skal være ærlig. Så fort barnet skrur på et
@@ -124,23 +125,48 @@ function byggBrett() {
   Motor.plasser = plasser;
 }
 
+/* Lydene hentes fra lageret når de trengs, ikke alle ved oppstart.
+
+   Med 200 opptak ville det tatt flere sekunder å dekode alt før appen kunne
+   brukes, og holdt titalls megabyte i minnet for lyder som står av og ingen
+   hører. Et kort opptak dekodes på noen millisekunder i det øyeblikket barnet
+   skrur det på — det merkes ikke. Hvert opptak hentes bare én gang, også om
+   det bes om flere ganger mens det holder på. */
+var underveis = {};
+
+function lastLyd(p) {
+  if (!p || p.kind !== 'stemme') return Promise.resolve(null);
+  if (p.buffer) return Promise.resolve(p.buffer);
+  if (underveis[p.id]) return underveis[p.id];
+  var id = p.id;
+  underveis[id] = Lager.hent(id).then(function (blob) {
+    if (!blob) return null;
+    return Lager.tilBuffer(blob);
+  }).then(function (buf) {
+    // plassen kan ha blitt bygd på nytt mens vi ventet, så den slås opp igjen
+    var plass = finnPlass(id);
+    if (plass && buf) plass.buffer = buf;
+    delete underveis[id];
+    return buf;
+  }).catch(function () { delete underveis[id]; return null; });
+  return underveis[id];
+}
+
+// bare de som står på — det er dem som skal høres med en gang
 function lastLyder() {
-  var jobber = S.stemmer.map(function (st) {
-    return Lager.hent(st.id).then(function (blob) {
-      if (!blob) return null;
-      return Lager.tilBuffer(blob).then(function (buf) {
-        var p = finnPlass(st.id);
-        if (p) p.buffer = buf;
-      });
-    }).catch(function () { return null; });
-  });
-  return Promise.all(jobber);
+  return Promise.all(Motor.plasser.filter(function (p) {
+    return p.kind === 'stemme' && p.paa;
+  }).map(lastLyd));
 }
 
 /* ---------- tegning ---------- */
 
+/* Et monster tegnes bare én gang. Samme nøkkel gir alltid samme figur, og med
+   200 lyder ville brettet ellers tegnet alle på nytt ved hvert eneste bytte. */
+var svgLager = {};
 function svgFor(p) {
-  return Monstre.tegn(p.id + (p.kind === 'trommer' ? '' : ':' + p.hue), p.hue);
+  var k = p.id + (p.kind === 'trommer' ? '' : ':' + p.hue);
+  return svgLager[k] || (svgLager[k] = Monstre.tegn(k, p.hue));
 }
 
 /* Taktlysene går gjennom hele neonskalaen appen ellers bruker: magenta på
@@ -204,19 +230,52 @@ function tegnBrett() {
     '</div></div><div class="rutenett">' +
     beats.map(kortHtml).join('') + '</div></div>';
 
-  h += '<div class="seksjon"><div class="seksjonstopp"><h2>DINE LYDER</h2></div>' +
-    '<div class="rutenett">' + stemmer.map(kortHtml).join('');
-  if (stemmer.length < MAKS_STEMMER) {
-    h += '<div class="kort nytt" data-h="tilOpptak" role="button" tabindex="0">' +
-      '<div class="mikro">🎤</div><div class="navn">TA OPP</div></div>';
-  }
-  h += '</div></div>';
+  h += stemmeSeksjon(stemmer);
 
   h += sangSeksjon();
   h += '<div class="versjon">' + VERSJON + '</div>';
 
   E('app').innerHTML = h;
   finnElementer();
+}
+
+/* Barnas egne lyder, lagt opp for at det skal gå an å ha mange.
+
+   «TA OPP» ligger først, ikke sist. Med to hundre lyder ville den ellers
+   ligget flere meter nede, og det viktigste barnet gjør — å lage en ny — ville
+   blitt det vanskeligste. Lydene står med den nyeste først, rett ved siden av
+   knappen, fordi det er den de nettopp laget som de vil leke med.
+
+   Bare de nyeste vises til å begynne med. Ellers ville sangene nederst på
+   brettet forsvunnet under tjue rader med monstre. Står noen av de skjulte på,
+   sier knappen fra om det — et monster som spiller uten å synes er forvirrende. */
+function stemmeSeksjon(stemmer) {
+  var liste = stemmer.slice().reverse();
+  var viste = ui.visAlleLyder ? liste : liste.slice(0, VIS_FORST);
+  var skjulte = liste.length - viste.length;
+  var skjultePaa = liste.slice(viste.length).filter(function (p) { return p.paa; }).length;
+
+  var h = '<div class="seksjon"><div class="seksjonstopp"><h2>DINE LYDER' +
+    (liste.length ? ' <span class="antall">' + liste.length + '</span>' : '') +
+    '</h2></div><div class="rutenett">';
+
+  if (liste.length < MAKS_STEMMER) {
+    h += '<div class="kort nytt" data-h="tilOpptak" role="button" tabindex="0">' +
+      '<div class="mikro">🎤</div><div class="navn">TA OPP</div></div>';
+  } else {
+    h += '<div class="kort nytt fullt"><div class="mikro">🎉</div>' +
+      '<div class="navn">' + MAKS_STEMMER + ' LYDER!</div>' +
+      '<div class="fulltTekst">Slett noen for å lage nye</div></div>';
+  }
+  h += viste.map(kortHtml).join('') + '</div>';
+
+  if (skjulte > 0) {
+    h += '<button class="flere" data-h="visAlle">VIS ALLE ' + liste.length +
+      (skjultePaa ? '<span>' + skjultePaa + ' av dem står på</span>' : '') + '</button>';
+  } else if (ui.visAlleLyder && liste.length > VIS_FORST) {
+    h += '<button class="flere" data-h="visFaerre">VIS FÆRRE</button>';
+  }
+  return h + '</div>';
 }
 
 /* Sangene ligger nederst på brettet, ikke bak en knapp. Et barn som må huske
@@ -439,8 +498,24 @@ function tegnStart() {
 function veksle(id, stille) {
   var p = finnPlass(id);
   if (!p) return;
+
+  /* En stemme som ikke er hentet ennå, hentes nå og skrus på når den er klar.
+     Viser det seg at barnet egentlig rullet (stille = angre), avlyses det
+     bare — da skal ingenting skrus på. */
+  if (p.kind === 'stemme' && !p.buffer && !p.paa) {
+    if (stille) { p.venter = false; return; }
+    p.venter = true;
+    lastLyd(p).then(function (buf) {
+      var q = finnPlass(id);
+      if (!q || !q.venter) return;
+      q.venter = false;
+      if (buf) veksle(id);
+      else toast('Fant ikke lyden');
+    });
+    return;
+  }
+
   brettEndret();
-  if (p.kind === 'stemme' && !p.buffer) { toast('Lyden er ikke lastet ennå'); return; }
   p.paa = !p.paa;
   Motor.sikreKjeder();
   if (stille) {
@@ -595,7 +670,9 @@ function stoppOpptak() {
   var langt = buf.duration > (60 / Motor.bpm * 4) * 1.05;
   ui.nyLyd = {
     id: 'lyd' + Date.now().toString(36),
-    navn: 'LYD ' + S.teller,
+    /* Appen foreslår et navn som passer til lyden. Det står ferdig utfylt i
+       feltet, så barnet kan beholde det eller skrive noe eget. */
+    navn: Navn.lag(buf, S.stemmer.map(function (st) { return st.navn; })),
     hue: Monstre.nyHue(S.teller),
     effekt: 'ren',
     /* Et langt opptak er en frase og skal gå én gang per runde; et kort er et
@@ -783,6 +860,10 @@ function hentSang(id) {
     if (o.effekt && p.kind === 'stemme') { p.effekt = o.effekt; p.rytme = o.rytme; Motor.plassEndret(p); }
   });
   Motor.sikreKjeder();
+  /* Stemmene i sangen hentes nå. Beatet begynner med en gang, og en stemme som
+     ikke er lastet ennå blir med fra neste slag den er klar — det er noen få
+     millisekunder, ikke noe barnet merker. */
+  lastLyder();
   if (!Motor.spiller) Motor.spill();
   ui.aktivSang = sang.id;
   skriv();
@@ -838,6 +919,53 @@ function delFil() {
   a.remove();
 }
 
+/* ---------- navn og lagring ---------- */
+
+/* Lyder laget før appen kunne gi navn selv, heter LYD 1, LYD 2 og så videre.
+   De får nå navn etter hvordan de faktisk låter — men bare de som fortsatt har
+   det automatiske navnet. Har barnet døpt en lyd selv, blir den i fred.
+
+   De tas én og én, ikke alle på én gang: dekoding av mange opptak samtidig
+   ville hakket i beatet som allerede spiller. */
+function gammeleNavn() {
+  var gamle = S.stemmer.filter(function (st) { return /^LYD \d+$/.test(st.navn); });
+  if (!gamle.length) return;
+  var kjede = Promise.resolve(), endret = 0;
+  gamle.forEach(function (st) {
+    kjede = kjede.then(function () {
+      var p = finnPlass(st.id);
+      if (!p) return null;
+      var hadde = !!p.buffer;
+      return lastLyd(p).then(function (buf) {
+        if (!buf) return;
+        var andre = S.stemmer.filter(function (s) { return s.id !== st.id; })
+          .map(function (s) { return s.navn; });
+        st.navn = p.navn = Navn.lag(buf, andre);
+        endret++;
+        // en lyd som står av, trengte vi bare for å høre på den
+        if (!p.paa && !hadde) p.buffer = null;
+      });
+    });
+  });
+  kjede.then(function () {
+    if (!endret) return;
+    skriv();
+    if (ui.skjerm === 'brett') tegnBrett();
+  });
+}
+
+/* Safari kan rydde bort lagrede data fra nettsider som ikke har vært brukt på
+   en stund. Her ber vi om at lydene får bli liggende — med to hundre opptak er
+   det mye å miste. For en app som er lagt på hjemskjermen blir svaret som
+   regel ja. */
+function beOmVarigLagring() {
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(function () {});
+    }
+  } catch (e) {}
+}
+
 /* ---------- hendelsesruting ---------- */
 
 var handlinger = {
@@ -847,7 +975,12 @@ var handlinger = {
     Motor.sikreKjeder();
     Motor.spill();
     vis('brett');
-    lastLyder().then(function () { Motor.sikreKjeder(); tegnBrett(); });
+    lastLyder().then(function () {
+      Motor.sikreKjeder();
+      if (ui.skjerm === 'brett') tegnBrett();
+    });
+    gammeleNavn();
+    beOmVarigLagring();
   },
   tempo: function (el) { tempo(parseInt(el.dataset.d, 10)); },
   grunnbeat: function (el) { byttGrunnbeat(el.dataset.id); },
@@ -864,6 +997,8 @@ var handlinger = {
   lagEgenBeat: function () { ui.beatModus = true; tilOpptak(); },
   omigjenBeat: function () { avsluttUtkast(false); ui.beatSvar = null; tilOpptak(); },
   bevarBeat: bevarBeat,
+  visAlle: function () { ui.visAlleLyder = true; tegnBrett(); },
+  visFaerre: function () { ui.visAlleLyder = false; tegnBrett(); },
   beatCelle: function (el) { beatCelle(el); },
   prov: function () { ui.opptak = 'klar'; tilOpptak(); },
   startOpptak: startOpptak,
@@ -872,7 +1007,12 @@ var handlinger = {
   velgEffekt: function (el) { velgEffekt(el.dataset.e); },
   lagreLyd: lagreLyd,
   hodetelefoner: function (el) { S.hodetelefoner = el.checked; skriv(); },
-  stell: function (el) { ui.stellId = el.dataset.id; tegnArk(); },
+  stell: function (el) {
+    ui.stellId = el.dataset.id;
+    tegnArk();
+    // hentes nå, så effektene kan prøves med en gang selv om lyden står av
+    lastLyd(finnPlass(el.dataset.id));
+  },
   settEffekt: function (el) { settEffekt(el.dataset.e); },
   settRytme: function (el) { settRytme(el.dataset.r); },
   slettLyd: slettLyd,
@@ -1039,10 +1179,18 @@ Visuell.leggTil(function (dt, naaMs) {
     var n = p.paa && p.rigg ? Visuell.niva(p.rigg.analyse) : 0;
     var d = naa - (p.sistSpilt || 0);
     var sprett = d >= 0 && d < 0.35 ? 1 - d / 0.35 : 0;
-    el.style.setProperty('--niva', n.toFixed(3));
-    el.style.setProperty('--sprett', sprett.toFixed(3));
+    /* Verdiene skrives bare når de faktisk endrer seg. Et monster som står av
+       har samme verdier bilde etter bilde, og med 200 kort ble det ellers
+       titusener av stilskrivinger i sekundet — hver av dem kan tvinge
+       nettleseren til å regne om utseendet på siden. */
+    var nT = n.toFixed(2), sT = sprett.toFixed(2);
+    if (el._n !== nT) { el.style.setProperty('--niva', nT); el._n = nT; }
+    if (el._s !== sT) { el.style.setProperty('--sprett', sT); el._s = sT; }
     var m = munnEl[p.id];
-    if (m) m.style.transform = 'scaleY(' + (0.3 + n * 2.6).toFixed(2) + ')';
+    if (m) {
+      var mT = 'scaleY(' + (0.3 + n * 2.6).toFixed(2) + ')';
+      if (m._t !== mT) { m.style.transform = mT; m._t = mT; }
+    }
     blunkeAnimasjon(p.id, naaMs);
   }
 });
