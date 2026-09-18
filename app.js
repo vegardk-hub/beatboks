@@ -3,7 +3,7 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v11';
+var VERSJON = 'v12';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 200;
 var VIS_FORST = 23;             // med TA OPP blir det fire hele rader på et nettbrett
@@ -130,7 +130,7 @@ function byggBrett() {
   });
   S.stemmer.forEach(function (st) {
     plasser.push({
-      id: st.id, kind: 'stemme', navn: st.navn, hue: st.hue,
+      id: st.id, kind: 'stemme', navn: st.navn, hue: st.hue, tema: st.tema || null,
       paa: !!st.paa, effekt: st.effekt || 'ren', rytme: st.rytme || 'slag',
       pan: st.pan || 0, volum: 1, buffer: gamle[st.id] || null, lydId: st.id,
       rigg: null, sistSpilt: 0
@@ -180,10 +180,27 @@ function lastLyder() {
 var svgLager = {};
 function svgFor(p) {
   var k = p.id + (p.kind === 'trommer' ? '' : ':' + p.hue);
-  if (!svgLager[k]) {
-    svgLager[k] = Monstre.tegn(k, p.hue, p.kind === 'trommer' ? { tema: p.def.tema } : null);
-  }
-  return svgLager[k];
+  var tema = p.kind === 'trommer' ? p.def.tema : p.tema;
+  var lager = k + '|' + (tema || '');
+  if (!svgLager[lager]) svgLager[lager] = Monstre.tegn(k, p.hue, tema ? { tema: tema } : null);
+  return svgLager[lager];
+}
+
+/* Nye lyder får en figur fra en tilfeldig verden — robot, drage, godteri,
+   hulemaleri … — i stedet for alltid den samme neonstilen. Stilen lagres på
+   lyden, så figuren ser lik ut i morgen. Lyder laget før dette har ingen stil
+   lagret og tegnes som før: barna kjenner dem igjen på figuren.
+
+   To lyder på rad får aldri samme stil, ellers ser en ny lyd ut som en kopi
+   av den forrige. */
+function nyStil(unnta) {
+  var valg = Monstre.STILER.filter(function (st) { return st !== unnta; });
+  return valg[Math.floor(Math.random() * valg.length)];
+}
+
+function sisteStil() {
+  var siste = S.stemmer[S.stemmer.length - 1];
+  return siste ? (siste.tema || null) : undefined;
 }
 
 /* Taktlysene går gjennom hele neonskalaen appen ellers bruker: magenta på
@@ -361,7 +378,11 @@ function tegnOpptak() {
   } else if (ui.opptak === 'lytt') {
     var p = ui.nyLyd;
     h += '<div class="lytt">' +
-      '<div class="nyttMonster" style="--hue:' + p.hue + '">' + Monstre.tegn(p.id + ':' + p.hue, p.hue) + '</div>' +
+      /* Figuren er en knapp: liker ikke barnet den, trykker de og får en ny —
+         fra en annen verden og i en annen farge. */
+      '<div class="nyttMonster" data-h="nyFigur" role="button" tabindex="0" style="--hue:' + p.hue + '">' +
+      svgFor({ id: p.id, kind: 'stemme', hue: p.hue, tema: p.tema }) + '</div>' +
+      '<div class="nyFigurHint">🎲 Trykk på figuren for en ny</div>' +
       /* Navnet settes her, i det øyeblikket lyden er ny og de vet hva den
          skal hete. Å måtte finne fram til et innstillingsark etterpå er
          grunnen til at ingen av lydene noensinne het noe annet enn LYD 1. */
@@ -610,6 +631,7 @@ function stoppOpptak() {
        feltet, så barnet kan beholde det eller skrive noe eget. */
     navn: Navn.lag(buf, S.stemmer.map(function (st) { return st.navn; })),
     hue: Monstre.nyHue(S.teller),
+    tema: nyStil(sisteStil()),
     effekt: 'ren',
     /* Et langt opptak er en frase og skal gå én gang per runde; et kort er et
        slag og skal gjenta seg. Å gjette riktig her sparer barnet for et valg
@@ -620,6 +642,19 @@ function stoppOpptak() {
   ui.opptak = 'lytt';
   tegnOpptak();
   Motor.prov(buf, 'ren');
+}
+
+function nyFigur() {
+  var p = ui.nyLyd;
+  if (!p) return;
+  p.tema = nyStil(p.tema);
+  p.hue = Math.floor(Math.random() * 360);
+  var el = document.querySelector('.nyttMonster');
+  if (!el) return;
+  // bare figuren byttes, så navnet de holder på å skrive blir stående
+  el.style.setProperty('--hue', p.hue);
+  el.innerHTML = svgFor({ id: p.id, kind: 'stemme', hue: p.hue, tema: p.tema });
+  el.classList.remove('spinn'); void el.offsetWidth; el.classList.add('spinn');
 }
 
 function velgEffekt(id) {
@@ -633,7 +668,7 @@ function lagreLyd() {
   var blob = Motor.wav(ny.buffer);
   Lager.lagre(ny.id, blob).catch(function () { toast('Fikk ikke lagret lyden'); });
   S.stemmer.push({
-    id: ny.id, navn: ny.navn, hue: ny.hue, effekt: ny.effekt,
+    id: ny.id, navn: ny.navn, hue: ny.hue, tema: ny.tema, effekt: ny.effekt,
     rytme: ny.rytme, paa: true, pan: (S.teller % 3 - 1) * 0.22
   });
   byggBrett();
@@ -862,6 +897,7 @@ var handlinger = {
   stoppOpptak: stoppOpptak,
   omigjen: function () { ui.nyLyd = null; ui.opptak = 'klar'; tilOpptak(); },
   velgEffekt: function (el) { velgEffekt(el.dataset.e); },
+  nyFigur: nyFigur,
   lagreLyd: lagreLyd,
   hodetelefoner: function (el) { S.hodetelefoner = el.checked; skriv(); },
   stell: function (el) {

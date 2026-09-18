@@ -1903,5 +1903,9 @@ var Monstre = (function () {
     return Math.round((nr * 137.508 + 20) % 360);
   }
 
-  return { tegn: tegn, nyHue: nyHue };
+  /* Alle stilene et monster kan tegnes i: null er den opprinnelige
+     neonstilen, resten er verdenene. Barnas nye lyder trekker fra denne. */
+  var ALLE_STILER = [null, 'pixel'].concat(Object.keys(TEMA), Object.keys(STILER));
+
+  return { tegn: tegn, nyHue: nyHue, STILER: ALLE_STILER };
 })();

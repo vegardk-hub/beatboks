@@ -656,6 +656,24 @@ body {
 .nyttMonster {
   width: clamp(130px, 32vw, 190px);
   filter: drop-shadow(0 0 22px hsl(var(--hue) 100% 60% / 0.7));
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.nyttMonster:active { transform: scale(0.94); }
+/* en liten snurr når figuren byttes, så barnet ser at trykket virket */
+.nyttMonster.spinn { animation: spinn 0.4s cubic-bezier(0.3, 1.4, 0.6, 1); }
+@keyframes spinn {
+  from { transform: scale(0.5) rotate(-25deg); opacity: 0.2; }
+}
+.nyFigurHint {
+  margin-top: -10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--ink-svak);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nyttMonster.spinn { animation: none; }
 }
 
 .effektvalg, .valgrad {
