@@ -64,6 +64,25 @@ var Visuell = (function () {
 
   /* ---------- bakgrunnen ---------- */
 
+  /* Fargene på himmelen følger beaten. Når barnet bytter verden, glir
+     skyene, horisonten og gitteret over til den nye verdenens farger i løpet
+     av et knapt sekund — rommet skifter, ikke bare lyden. */
+  var himmel = { sky1: 320, sky2: 190, horisont: 300, gitter: 190, vegg: 285 };
+  var himmelMaal = null;
+
+  function settHimmel(h, straks) {
+    himmelMaal = {};
+    Object.keys(himmel).forEach(function (k) { if (h && h[k] != null) himmelMaal[k] = h[k]; });
+    if (straks) { Object.keys(himmelMaal).forEach(function (k) { himmel[k] = himmelMaal[k]; }); }
+  }
+
+  // korteste vei rundt fargesirkelen, ellers går rosa til lilla via grønt
+  function motHue(fra, til, andel) {
+    var d = ((til - fra + 540) % 360) - 180;
+    if (Math.abs(d) < 0.5) return til;
+    return (fra + d * andel + 360) % 360;
+  }
+
   /* Perspektivgitteret beveger seg i tempoet til musikken, ikke i klokketid.
      Det er den detaljen som gjør at rommet føles som om det danser med. */
   function bakgrunn(lerret) {
@@ -100,6 +119,11 @@ var Visuell = (function () {
       var bpm = Motor.bpm;
       if (Motor.spiller) fase += dt * (bpm / 60) * 0.25;
       vandring += dt * 0.06;
+      if (himmelMaal) {
+        Object.keys(himmelMaal).forEach(function (k) {
+          himmel[k] = motHue(himmel[k], himmelMaal[k], Math.min(1, dt * 3.5));
+        });
+      }
       var blink = takt.blaff;      // blaffet i horisonten på hver ny takt
 
       g.clearRect(0, 0, b, h);
@@ -111,13 +135,13 @@ var Visuell = (function () {
         var st = stjerner[i];
         var lys = 0.35 + 0.65 * Math.abs(Math.sin(st.f + naa / 1000 * st.v));
         g.globalAlpha = lys * (0.5 + niv * 0.5);
-        g.fillStyle = i % 7 === 0 ? '#ff6ad5' : '#cfe9ff';
+        g.fillStyle = i % 7 === 0 ? 'hsl(' + himmel.sky1 + ' 100% 71%)' : '#cfe9ff';
         g.fillRect(st.x, st.y, st.r, st.r);
       }
       g.globalAlpha = 1;
 
       // to glødende skyer som puster med miksen
-      var farger = [[320, b * 0.22, h * 0.26], [190, b * 0.8, h * 0.2]];
+      var farger = [[himmel.sky1, b * 0.22, h * 0.26], [himmel.sky2, b * 0.8, h * 0.2]];
       g.globalCompositeOperation = 'lighter';
       for (var k = 0; k < farger.length; k++) {
         var f = farger[k];
@@ -131,7 +155,7 @@ var Visuell = (function () {
       g.globalCompositeOperation = 'source-over';
 
       // horisontlinje
-      g.strokeStyle = 'hsla(300 100% ' + (62 + blink * 30) + '% / ' + (0.5 + blink * 0.5) + ')';
+      g.strokeStyle = 'hsla(' + himmel.horisont + ' 100% ' + (62 + blink * 30) + '% / ' + (0.5 + blink * 0.5) + ')';
       g.lineWidth = 1 + blink * 2.5;
       g.beginPath();
       g.moveTo(0, horisont);
@@ -145,14 +169,14 @@ var Visuell = (function () {
         var p = (j + (fase % 1)) / linjer;
         var y = horisont + (h - horisont) * p * p;
         if (y > h) continue;
-        g.strokeStyle = 'hsla(190 100% 60% / ' + (0.32 * (1 - p) + 0.06).toFixed(3) + ')';
+        g.strokeStyle = 'hsla(' + himmel.gitter + ' 100% 60% / ' + (0.32 * (1 - p) + 0.06).toFixed(3) + ')';
         g.beginPath();
         g.moveTo(0, y);
         g.lineTo(b, y);
         g.stroke();
       }
       for (var v = -9; v <= 9; v++) {
-        g.strokeStyle = 'hsla(285 100% 65% / ' + (0.06 + niv * 0.1).toFixed(3) + ')';
+        g.strokeStyle = 'hsla(' + himmel.vegg + ' 100% 65% / ' + (0.06 + niv * 0.1).toFixed(3) + ')';
         g.beginPath();
         g.moveTo(b / 2 + v * (b * 0.035), horisont);
         g.lineTo(b / 2 + v * (b * 0.55), h);
@@ -276,7 +300,7 @@ var Visuell = (function () {
 
   return {
     leggTil: leggTil, fjern: fjern, niva: niva,
-    bakgrunn: bakgrunn, opptaksring: opptaksring,
+    bakgrunn: bakgrunn, opptaksring: opptaksring, settHimmel: settHimmel,
     takt: takt
   };
 })();

@@ -13,7 +13,7 @@ HTTPS (eller `localhost`) og den virker.
 | --- | --- |
 | `audio.js` | Lydmotoren: trommesyntese, effektkjeder, taktklokke, eksport |
 | `record.js` | Mikrofon, etterarbeid på opptaket, lagring i IndexedDB |
-| `analyse.js` | Hører på et opptak og skriver det ned som en beat |
+| `analyse.js` | Hører hva slags lyd et opptak er (brukes til navnene) |
 | `navn.js` | Gir hver lyd et lydmalende navn ut fra hvordan den låter |
 | `monsters.js` | Tegner monstrene prosedyrisk som neon-SVG |
 | `visual.js` | Bakgrunnen og visualiseringsringen under opptak |
@@ -27,15 +27,29 @@ endres fritt uten at trommene låter strukket, og derfor den virker offline med
 kjører nøyaktig samme kode i en `OfflineAudioContext`, så det barna hører er
 det de får i fila.
 
-**Alt tonalt ligger i A-moll pentaton.** Det er ikke pynt: det er grunnen til
-at en seksåring kan skru på alle monstrene samtidig uten at det låter surt.
-Det gjelder på tvers av alle grunnbeatene, så de kan bytte stil midt i en låt
-uten at deres egne lyder plutselig blir sure mot bassen.
+**Seks beats, og hver er en hel verden.** BOOM BAP, ROMBASE, JUNGEL, HAVDYP,
+PIXEL og SPØKELSE har hver sine egne monstre, egne syntetiserte lyder, egen
+toneart og eget tempo — ikke samme trommer i nytt mønster. Å bytte beat
+bytter monstrene, lydene, tempoet og fargene på himmelen på én gang, så det
+føles som å gå inn i et annet rom. Barnas egne lyder blir stående og spiller
+videre oppå den nye beaten: det er barnets band, beaten er scenen. Hver
+verden husker hvilke av sine monstre som sto på sist (`S.trommer`), så det
+går an å hoppe fram og tilbake.
 
-**Monsteret er instrumentet, grunnbeaten er arrangementet.** `BEATS` sier hva
-et monster ER (lydstemme, navn, farge), `GRUNNBEATS` sier hva det SPILLER.
-Derfor kan DUNDER gå fra boom bap til reggae uten å skifte utseende — barna
-kjenner igjen sin egen kick uansett hvilken låt de bygger.
+**Hver verden har sin toneart, og alt i den passer sammen.** Innenfor én beat
+er alle tonene valgt slik at en seksåring kan skru på alle monstrene samtidig
+uten at det skjærer: A-moll pentaton i BOOM BAP, E-moll i ROMBASE, C-dur i
+JUNGEL, D-moll i HAVDYP, G-dur i PIXEL — pentatone skalaer, der ingen to
+toner gnisser. SPØKELSE er unntaket med vilje: E harmonisk moll, der den ene
+hevede tonen (D#) gjør det skummelt, men orgelet løser seg alltid opp igjen.
+
+**Monstrene hører hjemme i sin verden.** `monsters.js` har et tema per verden
+som bestemmer hvilke kropper, øyne, munner og pynt generatoren får velge
+mellom: roboter med visir og hjul, jungeldyr med blader, maneter og
+blekkspruter, pikselmonstre som i et gammelt tv-spill, og spøkelser med
+heksehatt og selvlysende øyne. Monstre uten tema — barnas egne lyder og BOOM
+BAP — trekker nøyaktig like mange terningkast som før, så ingen eksisterende
+figur har forandret seg. De nye kroppsformene står derfor utenfor `FORMER`.
 
 **Mikrofonens «hjelp» er skrudd av** (`echoCancellation`, `noiseSuppression`,
 `autoGainControl` = `false`). Støyfjerning spiser nettopp tsss- og pff-lydene
@@ -50,7 +64,7 @@ om loopen lander på slaget — et opptak med et halvt sekund nøling foran komm
 alltid for sent, uansett hvor godt barnet traff.
 
 **En lagret sang er en tilstand, ikke et lydopptak.** Den husker hvilke monstre
-som sto på, hvilken grunnbeat og hvilket tempo, og hvilken effekt og rytme hver
+som sto på, hvilken beat og hvilket tempo, og hvilken effekt og rytme hver
 stemme hadde. Å spille den av setter brettet tilbake til akkurat det — og da
 oppfører figurene seg av seg selv slik de skal, fordi animasjonen leser
 lydnivået fra hvert monsters egen analysenode. Sangene ligger nederst på
@@ -76,24 +90,9 @@ ikke den høyeste; ellers ble en pipestemme på 620 Hz målt til 78 Hz, åtte
 perioder ut. Lyder som fortsatt heter LYD 1, LYD 2 … fra før navnefunksjonen
 kom, døpes om ved oppstart. Navn barnet har satt selv, røres aldri.
 
-**Egen beat: tempoet gjettes ikke.** Barna beatboxer i fire takter mens
-steglysene løper som metronom, så appen vet allerede hvor raskt det går og
-trenger bare finne ut hvor i takten de begynte. Det er både mer treffsikkert
-enn tempogjetting og lettere å forstå: følger du lysene, blir beaten din.
-Beatet er alltid dempet under dette opptaket — hører de den gamle beaten mens
-de lager en ny, hermer de den, og skulle høyttaleren stå på ville appens egne
-trommer havnet i analysen.
-
-**Kartet er et instrument, ikke en kvittering.** Rutenettet som vises etter
-analysen kan redigeres: barnet trykker slag inn og ut, og utkastet spiller hele
-tiden mens de gjør det, så endringen høres med én gang og i sammenheng. Å vise
-en stille tegning og først spille den av etterpå ville gjort dette til en
-gjettelek. Alle trommemonstrene skrus på mens de redigerer — ellers ville en
-rute de trykker på vært stum fordi monsteret tilfeldigvis sto av — og brettet
-settes tilbake slik det var hvis de angrer.
-
-**Analysen måler ØKNING, ikke nivå.** Det gjelder både anslagsdeteksjonen og
-gjenkjenningen, og begge steder var det forskjellen på å virke og ikke virke:
+**Analysen måler ØKNING, ikke nivå.** Den brukes til å gi lydene navn, og det
+gjelder både anslagsdeteksjonen og gjenkjenningen — begge steder var det
+forskjellen på å virke og ikke virke:
 en kick sveiper nedover i tonehøyde, så grunntonen vandrer inn i bassbåndet
 etter anslaget og så ut som et nytt slag; og en hi-hat slått 200 ms etter en
 kick står fortsatt i kickens bass-hale og ble målt som skarptromme. Begge
@@ -109,55 +108,45 @@ ikke blir en strek tvers over ansiktet.
 
 ## Endre noe
 
-En ny grunnbeat legges i `GRUNNBEATS` i `audio.js`. Den trenger `bpm` og et
-`spor` for hvert monster-id. Rytmesporene er 16 tegn, der `x` er hardt slag,
-`o` mykt og `.` stille (`rare` bruker i tillegg `r` for kant og `k` for
-bjelle). De tonale sporene — `bass` og `blipp` — skrives som 16 notenavn
-adskilt med mellomrom, der `.` er pause.
+En ny beat legges i `GRUNNBEATS` i `audio.js`: `id`, `navn`, `emoji`, `bpm`,
+`hue` (fargen på knappen), `tema` (monsterstilen), `himmel` (fargene i
+bakgrunnen) og en liste `lyder`. Hver lyd har sin egen `slag`-funksjon og sitt
+eget `spor`: 16 tegn for én takt eller 32 for to (mellomrom leses bort), der
+`x` er hardt slag, `o` mykt og `.` stille — andre bokstaver sendes videre til
+lyden (bongoen bruker `h` og `l`). Tonale spor er notenavn med mellomrom
+(`A1`, `C#4`, `Bb3`), akkorder med pluss (`E3+G3+B3`). `lengde` er hvor mange
+steg en tone holder, eller `'legato'` for «til neste tone» med `maksSteg` som
+tak. `start: true` gjør at monsteret står på første gang verdenen åpnes — hold
+det til tre. Id-ene må være unike på tvers av alle beatene; feil i et spor
+sies fra om i konsollen ved oppstart.
 
-Pass på at ikke kick, klapp og skarptromme lander på nøyaktig samme steg. De
-summerer seg da til klipping, og det høres. Slik måler du:
+Pass på nivåene. Alle beatene er målt slik at de ligger rundt 0,17–0,22 i RMS
+med alt på, og under 0,9 i topp. Kick, skarptromme og klapp bør ikke lande på
+nøyaktig samme steg — de summerer seg til klipping. Slik måler du:
 
 ```js
+async function maal() {
+  const b = await new OfflineAudioContext(1, 1, 44100)
+    .decodeAudioData(await (await Motor.eksporter(4)).arrayBuffer());
+  const d = b.getChannelData(0);
+  let topp = 0, sum = 0;
+  for (const x of d) { topp = Math.max(topp, Math.abs(x)); sum += x * x; }
+  return { topp: topp.toFixed(3), rms: Math.sqrt(sum / d.length).toFixed(3) };
+}
+Motor.settGrunnbeat('din-nye-beat'); byggBrett();
 Motor.plasser.forEach(p => p.paa = p.kind === 'trommer');
-Motor.settGrunnbeat('din-nye-beat');
-const b = await Motor.ctx.decodeAudioData(await (await Motor.eksporter(2)).arrayBuffer());
-const d = b.getChannelData(0);
-console.log('topp', Math.max(...d).toFixed(3));   // skal ligge under 0,95
+console.log(await maal());
 ```
 
-Endrer du på gjenkjenningen i `analyse.js`, kan du teste den mot en fasit du
-lager selv: sett opp en **enstemmig** grunnbeat (aldri to lyder på samme steg —
-en munn kan ikke det heller), eksporter fire takter, og send det tilbake inn:
+En ny effekt legges i `EFFEKTER`; den trenger enten en `rate`
+(avspillingsfart), en `bygg`-funksjon som returnerer `{ inn, ut }`, eller begge.
 
-```js
-Motor.leggTilGrunnbeat({ id:'t', navn:'T', emoji:'T', bpm:92, spor: {
-  dunder:'x.......x.......', skarp:'....x.......x...', tikk:'..x...x...x...x.',
-  riste:'................', rare:'................', klapp:'................',
-  bass:'. . . . . . . . . . . . . . . .', blipp:'. . . . . . . . . . . . . . . .' } });
-Motor.settGrunnbeat('t', false);
-Motor.plasser.forEach(p => p.paa = ['dunder','skarp','tikk'].indexOf(p.id) >= 0);
-const buf = await Motor.ctx.decodeAudioData(await (await Motor.eksporter(4)).arrayBuffer());
-console.log(Analyse.tilBeat(buf, 92).spor);   // skal gi mønsteret over tilbake
-```
-
-`tilBeat` returnerer også `treff`, `fase` og `rotasjon`, så det går an å se
-nøyaktig hva appen hørte og hvor den la slagene.
-
-Kjente grenser: to lyder på samme sekstendedel smelter til ett anslag og
-gjenkjennes som den kraftigste av dem — det gjør ikke noe i praksis, siden en
-munn er enstemmig. Rytmeegg og hi-hat skilles bare når «tsss» faktisk er
-merkbart lengre enn «ts»; ellers blir begge til hi-hat.
-
-Et nytt beat-monster legges i `BEATS` samme sted — husk da å gi det et spor i
-alle fem grunnbeatene, ellers er det stumt i de andre. En ny effekt legges i
-`EFFEKTER`; den trenger enten en `rate` (avspillingsfart), en `bygg`-funksjon
-som returnerer `{ inn, ut }`, eller begge.
-
-En ny kroppsform legges i `FORMER` i `monsters.js`. Den må returnere `deler`
-(SVG-tekst), ytterkantene `topp`/`bunn`/`halvbred`, og en `ansikt`-boks som er
-garantert *inne i* silhuetten — mønster og ansikt plasseres etter den, og for
-former som bobler eller pigger er ytterkanten delvis tom luft.
+Et nytt monstertema legges i `TEMA` i `monsters.js`: lister over kropper,
+pynt, øyne, munner og mønstre å velge mellom. En ny kroppsform må returnere
+`deler` (SVG-tekst), ytterkantene `topp`/`bunn`/`halvbred`, og en `ansikt`-boks
+som er garantert *inne i* silhuetten — mønster og ansikt plasseres etter den,
+og for former som bobler eller pigger er ytterkanten delvis tom luft. Legg den
+aldri i `FORMER`: det ville endret utseendet på alle barnas eksisterende lyder.
 
 Tegneflaten er `0 0 100 100` og klipper alt utenfor. Alt som stikker opp må
 respektere taket `HIMMEL`. Slik sjekker du at ingenting blir klippet:
@@ -165,10 +154,12 @@ respektere taket `HIMMEL`. Slik sjekker du at ingenting blir klippet:
 ```js
 const d = document.createElement('div');
 document.body.appendChild(d);
-for (let i = 0; i < 400; i++) {
-  d.innerHTML = Monstre.tegn('t' + i, Monstre.nyHue(i));
-  const b = d.querySelector('svg').getBBox();
-  if (b.x < -2 || b.y < -2 || b.x + b.width > 102 || b.y + b.height > 102) console.log(i, b);
+for (const tema of ['rom', 'jungel', 'hav', 'pixel', 'gross', null]) {
+  for (let i = 0; i < 400; i++) {
+    d.innerHTML = Monstre.tegn('t' + i, Monstre.nyHue(i), tema ? { tema } : null);
+    const b = d.querySelector('svg').getBBox();
+    if (b.x < -2 || b.y < -2 || b.x + b.width > 102 || b.y + b.height > 102) console.log(tema, i, b);
+  }
 }
 ```
 

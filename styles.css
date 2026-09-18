@@ -436,75 +436,65 @@ body {
   box-shadow: 0 0 16px rgba(45, 226, 230, 0.4);
 }
 .gb:active { transform: scale(0.94); }
-.gb.lag {
-  border-color: rgba(255, 60, 166, 0.55);
-  border-style: dashed;
-  color: var(--rosa);
+
+/* ---------- de seks beatene ---------- */
+
+/* Store knapper, ett bilde hver, i hver sin neonfarge. Seks på rad på et
+   nettbrett, tre og tre på en telefon. Bildet er det barna velger etter;
+   navnet er for den som kan lese det. */
+.verdener {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
 }
-
-/* ---------- svaret etter at appen har hørt på beaten ---------- */
-
-.beatsvar {
+@media (min-width: 620px) {
+  .verdener { grid-template-columns: repeat(6, 1fr); }
+}
+.verden {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  width: 100%;
-  max-width: 620px;
-}
-.beatsvar h1 {
-  font-size: clamp(24px, 7vw, 38px);
-  margin: 0;
-  letter-spacing: 3px;
-  color: #fff;
-  text-shadow: 0 0 12px var(--lime), 0 0 34px var(--lime);
-}
-.beatsvar p { color: var(--ink-svak); margin: 0; font-weight: 600; }
-.beatsvar b { color: var(--cyan); }
-
-.bpRutenett {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  background: rgba(8, 3, 18, 0.65);
-  border: 2px solid rgba(164, 92, 255, 0.35);
+  gap: 4px;
+  padding: 10px 4px 8px;
   border-radius: var(--r);
-  padding: 12px 10px;
-}
-.bpRad { display: flex; align-items: center; gap: 10px; }
-.bpNavn { font-size: 20px; width: 26px; text-align: center; flex: none; }
-.bpCeller { display: flex; gap: 3px; flex: 1; }
-
-/* Rutene er knapper, ikke pynt: barnet trykker slag inn og ut her. Derfor er
-   de høye nok til å treffes med en finger, og svarer på trykk. */
-.bpCeller i {
-  flex: 1;
-  height: 30px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 2px solid hsl(var(--hue) 90% 60% / 0.4);
+  background: hsl(var(--hue) 80% 50% / 0.06);
+  color: hsl(var(--hue) 90% 78% / 0.75);
+  font-family: inherit;
   cursor: pointer;
-  touch-action: manipulation;
-  transition: background 0.1s, box-shadow 0.1s, transform 0.06s;
+  transition: transform 0.12s, box-shadow 0.15s, background 0.15s;
 }
-.bpCeller i:active { transform: scale(0.86); }
-/* hovedslagene får en anelse lysere bunn, så takten er lett å telle */
-.bpCeller i.slag { background: rgba(255, 255, 255, 0.1); }
-.bpCeller i.myk {
-  background: hsl(var(--hue) 90% 55% / 0.45);
-  border-color: hsl(var(--hue) 90% 60% / 0.6);
+.vBilde { font-size: 30px; line-height: 1.1; filter: saturate(0.6); transition: transform 0.15s; }
+.vNavn { font-size: 10px; font-weight: 900; letter-spacing: 1.2px; white-space: nowrap; }
+.verden.valgt {
+  color: #fff;
+  border-color: hsl(var(--hue) 100% 66%);
+  background: hsl(var(--hue) 90% 50% / 0.22);
+  box-shadow: 0 0 20px hsl(var(--hue) 100% 60% / 0.55), inset 0 0 14px hsl(var(--hue) 100% 60% / 0.25);
 }
-.bpCeller i.hard {
-  background: hsl(var(--hue) 100% 62%);
-  border-color: hsl(var(--hue) 100% 75%);
-  box-shadow: 0 0 8px hsl(var(--hue) 100% 60% / 0.7);
+.verden.valgt .vBilde { filter: none; transform: scale(1.15); }
+.verden:active { transform: scale(0.93); }
+
+/* Når en ny verden åpnes, spretter monstrene inn ett og ett. Det er det som
+   forteller barnet at det er NYE monstre, ikke de samme i ny farge. */
+.beatkort.inn .kort { animation: inn 0.42s cubic-bezier(0.3, 1.5, 0.6, 1) backwards; }
+.beatkort.inn .kort:nth-child(2) { animation-delay: 0.04s; }
+.beatkort.inn .kort:nth-child(3) { animation-delay: 0.08s; }
+.beatkort.inn .kort:nth-child(4) { animation-delay: 0.12s; }
+.beatkort.inn .kort:nth-child(5) { animation-delay: 0.16s; }
+.beatkort.inn .kort:nth-child(6) { animation-delay: 0.2s; }
+.beatkort.inn .kort:nth-child(7) { animation-delay: 0.24s; }
+.beatkort.inn .kort:nth-child(8) { animation-delay: 0.28s; }
+.beatkort.inn .kort:nth-child(9) { animation-delay: 0.32s; }
+
+@keyframes inn {
+  from { transform: scale(0.4) translateY(18px); opacity: 0; }
 }
 
-/* metronomen på opptaksskjermen ligger over ringen, ikke bak den */
-.steglys.iOpptak { position: relative; z-index: 2; }
-
-.beskjed .liten { font-size: 14px; opacity: 0.75; }
+@media (prefers-reduced-motion: reduce) {
+  .beatkort.inn .kort { animation: none; }
+}
 
 /* ---------- knapper ---------- */
 

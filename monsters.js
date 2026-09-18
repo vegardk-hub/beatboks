@@ -284,6 +284,87 @@ var Monstre = (function () {
   var FORMER = [kroppKlump, kroppBoks, kroppSpokelse, kroppStolpe,
     kroppKlase, kroppTagg, kroppTrekant, kroppOrm];
 
+  /* Formene under brukes bare av beatene i sine egne verdener. De står
+     utenfor FORMER med vilje: legges en form til der, endrer det hvilken
+     kropp hvert eksisterende monster trekker, og barnas lyder ville skiftet
+     utseende over natten. */
+
+  function kroppKuppel(rnd, f) {
+    // søppelbøtteroboten: rett kropp med en glasskuppel som hode
+    var hb = mellomtall(rnd, 22, 28);
+    var topp = mellomtall(rnd, 16, 22), bunn = mellomtall(rnd, 76, 84);
+    var skulder = topp + hb, belte = bunn - 8;
+    var d = 'M' + P(50 - hb, bunn) + 'L' + P(50 - hb, skulder) +
+      'A' + tall(hb) + ' ' + tall(hb) + ' 0 0 1 ' + P(50 + hb, skulder) +
+      'L' + P(50 + hb, bunn) + 'Z';
+    var deler = [bane(d, f, 3.2)];
+    deler.push(strek('M' + P(50 - hb + 2, belte) + 'L' + P(50 + hb - 2, belte), f.aksent, 3));
+    return {
+      deler: deler, topp: topp, bunn: bunn, halvbred: hb,
+      ansikt: { topp: topp + 5, bunn: belte - 4, halvbred: hb * 0.8 },
+      beinPlass: true, maskin: true
+    };
+  }
+
+  function kroppManet(rnd, f) {
+    var hb = mellomtall(rnd, 27, 34);
+    var topp = mellomtall(rnd, 12, 18);
+    var kant = topp + mellomtall(rnd, 36, 44);        // underkanten av hatten
+    var deler = [], i;
+    // tentaklene først, så dekker hatten der de er festet
+    var antall = 4 + Math.floor(rnd() * 3);
+    for (i = 0; i < antall; i++) {
+      var x = 50 - hb * 0.72 + hb * 1.44 * (i / (antall - 1));
+      var ned = Math.min(95, kant + mellomtall(rnd, 24, 36));
+      var svai = mellomtall(rnd, 4, 8) * (i % 2 ? 1 : -1);
+      var dd = 'M' + P(x, kant - 4) +
+        'C' + P(x + svai, kant + (ned - kant) * 0.35) + ' ' +
+        P(x - svai, kant + (ned - kant) * 0.7) + ' ' + P(x + svai * 0.5, ned);
+      deler.push(strek(dd, i % 2 ? f.aksent : f.strek, i % 2 ? 2.2 : 3));
+    }
+    /* Kuppelen er en kubisk kurve med kontrollpunktene rett over hjørnene.
+       Kontrollhøyden regnes ut så toppen av kurven havner nøyaktig på topp. */
+    var kontroll = (topp - 0.25 * kant) / 0.75;
+    var d = 'M' + P(50 - hb, kant) + 'C' + P(50 - hb, kontroll) + ' ' +
+      P(50 + hb, kontroll) + ' ' + P(50 + hb, kant);
+    var bolger = 5 + Math.floor(rnd() * 3), steg = hb * 2 / bolger;
+    for (i = 0; i < bolger; i++) {
+      var x0 = 50 + hb - i * steg, x1 = x0 - steg;
+      d += 'Q' + P((x0 + x1) / 2, kant + 5) + ' ' + P(x1, kant);
+    }
+    deler.push(bane(d + 'Z', f));
+    return {
+      deler: deler, topp: topp, bunn: kant + 4, halvbred: hb,
+      // kuppelen er smal øverst, så ansiktet starter et stykke ned
+      ansikt: { topp: topp + (kant - topp) * 0.22, bunn: kant - 1, halvbred: hb * 0.72 },
+      beinPlass: false, ingenLemmer: true
+    };
+  }
+
+  function kroppBlekksprut(rnd, f) {
+    var r = mellomtall(rnd, 23, 28), ry = r * mellomtall(rnd, 1.0, 1.15);
+    var cy = mellomtall(rnd, 38, 44);
+    var deler = [], antall = 5 + Math.floor(rnd() * 2);
+    for (var i = 0; i < antall; i++) {
+      var t = i / (antall - 1) - 0.5, side = t < 0 ? -1 : 1;
+      var fx = 50 + t * r * 1.3, fy = cy + ry * 0.55;
+      var tx = Math.max(9, Math.min(91, 50 + t * r * 2.9));
+      var ty = Math.min(88, cy + ry + mellomtall(rnd, 12, 20));
+      var krull = side * mellomtall(rnd, 4, 7);
+      var dd = 'M' + P(fx, fy) + 'Q' + P(fx + (tx - fx) * 0.2, ty) + ' ' + P(tx, ty - 3) +
+        'Q' + P(Math.max(5, Math.min(95, tx + krull)), ty - 8) + ' ' + P(tx + krull * 0.2, ty - 10);
+      // en tykk strek med en tynnere oppå blir en arm med kant, uten fylte baner
+      deler.push(strek(dd, f.strek, 8) + strek(dd, f.fyll, 4.2));
+    }
+    deler.push('<ellipse cx="50" cy="' + tall(cy) + '" rx="' + tall(r) + '" ry="' + tall(ry) +
+      '" fill="' + f.fyll + '" stroke="' + f.strek + '" stroke-width="3"/>');
+    return {
+      deler: deler, topp: cy - ry, bunn: cy + ry, halvbred: r,
+      ansikt: { topp: cy - ry, bunn: cy + ry, halvbred: r * 0.85 },
+      beinPlass: false, ingenLemmer: true
+    };
+  }
+
   /* ---------- øyne ---------- */
 
   /* Øyet ligger i en egen gruppe med klassen «oye». Appen klemmer den flat
@@ -303,6 +384,25 @@ var Monstre = (function () {
       s += strek('M' + P(x + r * 0.7, y - r * 0.7) + 'L' + P(x - r * 0.7, y + r * 0.7), f.strek, 3);
       s += '</g>';
       return s;
+    }
+    if (stil === 'skjerm') {
+      // firkantede robotøyne, med firkantet pupill
+      var pk = r * 0.8, pav = (blikk || 0) * r * 0.35;
+      return '<g class="oye"><rect x="' + tall(x - r) + '" y="' + tall(y - r) + '" width="' + tall(r * 2) +
+        '" height="' + tall(r * 2) + '" rx="' + tall(r * 0.3) + '" fill="#fff" stroke="' + f.strek +
+        '" stroke-width="1.6"/><rect x="' + tall(x + pav - pk / 2) + '" y="' + tall(y - pk / 2 + r * 0.1) +
+        '" width="' + tall(pk) + '" height="' + tall(pk) + '" fill="#150b22"/>' +
+        '<rect x="' + tall(x + pav - pk / 2 + 1) + '" y="' + tall(y - pk / 2 + r * 0.1 + 1) +
+        '" width="' + tall(pk * 0.3) + '" height="' + tall(pk * 0.3) + '" fill="#fff"/></g>';
+    }
+    if (stil === 'glod') {
+      /* Selvlysende øyne med kattepupill. Skummelt nok til å være et
+         spøkelse, men med lysglimtet i behold, så det fortsatt er en venn. */
+      return '<g class="oye"><circle cx="' + tall(x) + '" cy="' + tall(y) + '" r="' + tall(r * 1.35) +
+        '" fill="' + f.aksent + '" opacity="0.28"/>' + sirkel(x, y, r, f.aksent) +
+        '<ellipse cx="' + tall(x + (blikk || 0) * r * 0.3) + '" cy="' + tall(y) + '" rx="' + tall(r * 0.2) +
+        '" ry="' + tall(r * 0.72) + '" fill="#150b22"/>' +
+        sirkel(x - r * 0.4, y - r * 0.42, Math.max(1, r * 0.2), '#fff') + '</g>';
     }
     var pupillR = r * mellomtall(rnd, 0.34, 0.52);
     /* Felles blikkretning når den er oppgitt: da ser øynene samme vei, og
@@ -325,6 +425,23 @@ var Monstre = (function () {
     }
     s += '</g>';
     return s;
+  }
+
+  /* Ett visir tvers over ansiktet i stedet for øyne, med to lysprikker som
+     ser samme vei. Det er det som gjør en boks til en robot. */
+  function visir(x, y, hb, f, blikk) {
+    var h = Math.max(8, Math.min(13, hb * 0.5)), b = hb * 0.92;
+    var px = x + blikk * b * 0.4;
+    var s = '<g class="oye"><rect x="' + tall(x - b) + '" y="' + tall(y - h / 2) + '" width="' +
+      tall(b * 2) + '" height="' + tall(h) + '" rx="' + tall(h / 2) + '" fill="#0b0a1e" stroke="' +
+      f.strek + '" stroke-width="2.4"/>';
+    [-1, 1].forEach(function (side) {
+      var ex = px + side * b * 0.34;
+      s += '<circle cx="' + tall(ex) + '" cy="' + tall(y) + '" r="' + tall(h * 0.5) + '" fill="' +
+        f.aksent + '" opacity="0.3"/>' + sirkel(ex, y, h * 0.28, f.aksent) +
+        sirkel(ex - h * 0.08, y - h * 0.08, h * 0.1, '#fff');
+    });
+    return s + '</g>';
   }
 
   function bryn(x, y, r, helning, f) {
@@ -370,6 +487,15 @@ var Monstre = (function () {
       }
       d2 += 'L' + P(cx + hb, y);
       s += strek(d2, f.strek, 3);
+    } else if (stil === 'gitter') {
+      // høyttalergitter: robotens munn
+      var gh = ry * 1.4, n3 = 4 + Math.floor(rnd() * 3);
+      s += '<rect x="' + tall(cx - hb) + '" y="' + tall(y - gh / 2) + '" width="' + tall(hb * 2) +
+        '" height="' + tall(gh) + '" rx="3" fill="#190c28" stroke="' + f.strek + '" stroke-width="2.4"/>';
+      for (var j = 1; j < n3; j++) {
+        var gx = cx - hb + hb * 2 * j / n3;
+        s += strek('M' + P(gx, y - gh / 2 + 2) + 'L' + P(gx, y + gh / 2 - 2), f.strek, 1.5);
+      }
     } else if (stil === 'liten') {
       s += '<ellipse cx="' + tall(cx) + '" cy="' + tall(y) + '" rx="' + tall(hb * 0.38) +
         '" ry="' + tall(ry * 0.85) + '" fill="#190c28" stroke="' + f.strek + '" stroke-width="2.6"/>';
@@ -431,6 +557,68 @@ var Monstre = (function () {
       }
       s += '<path d="' + d + 'Z" fill="' + f.aksent + '" stroke="' + f.strek +
         '" stroke-width="2" stroke-linejoin="round"/>';
+    } else if (stil === 'radar') {
+      var rty = Math.max(toppY - mellomtall(rnd, 12, 18), HIMMEL + 5);
+      s += strek('M' + P(x, toppY + 3) + 'L' + P(x, rty), f.strek, 2.6);
+      s += '<path d="M' + P(x - 9, rty - 4) + 'Q' + P(x, rty + 7) + ' ' + P(x + 9, rty - 4) +
+        'Z" fill="' + f.aksent + '" stroke="' + f.strek + '" stroke-width="2" stroke-linejoin="round"/>';
+      s += sirkel(x, rty - 1, 1.8, '#fff');
+    } else if (stil === 'blader') {
+      // en vifte av blader bak hodet — grønne uansett hvilken farge dyret har
+      var nb = 3 + Math.floor(rnd() * 3);
+      for (var b = 0; b < nb; b++) {
+        var vinkel = (b / (nb - 1) - 0.5) * 1.9;
+        var lengde = mellomtall(rnd, 16, 24);
+        var bx = x + Math.sin(vinkel) * hb * 0.3, by = toppY + 6;
+        var tx = bx + Math.sin(vinkel) * lengde;
+        var ty = Math.max(by - Math.cos(vinkel) * lengde, HIMMEL);
+        var nx = -(ty - by), ny = tx - bx, nl = Math.sqrt(nx * nx + ny * ny) || 1;
+        var bred = lengde * 0.28, mx = (bx + tx) / 2, my = (by + ty) / 2;
+        s += '<path d="M' + P(bx, by) + 'Q' + P(mx + nx / nl * bred, my + ny / nl * bred) + ' ' +
+          P(tx, ty) + 'Q' + P(mx - nx / nl * bred, my - ny / nl * bred) + ' ' + P(bx, by) +
+          'Z" fill="hsl(115 70% 24%)" stroke="hsl(110 95% 55%)" stroke-width="2" stroke-linejoin="round"/>';
+        s += strek('M' + P(bx, by) + 'L' + P(bx + (tx - bx) * 0.8, by + (ty - by) * 0.8), 'hsl(110 95% 60%)', 1.2);
+      }
+    } else if (stil === 'bobler') {
+      // bobler som stiger opp ved siden av hodet
+      var side = rnd() > 0.5 ? 1 : -1;
+      var bbx = Math.max(8, Math.min(92, x + side * (hb + 4)));
+      var bby = toppY + 14;
+      for (var j = 0; j < 3; j++) {
+        var br = 2.2 + j * 1.3;
+        bby -= br * 2 + 2;
+        if (bby - br < HIMMEL) break;
+        var bxx = Math.max(br + 2, Math.min(98 - br, bbx + side * j * 2));
+        s += '<circle cx="' + tall(bxx) + '" cy="' + tall(bby) + '" r="' + tall(br) + '" fill="none" stroke="' +
+          f.aksent + '" stroke-width="1.6"/>' + sirkel(bxx - br * 0.35, bby - br * 0.35, 0.8, '#fff');
+      }
+    } else if (stil === 'heksehatt') {
+      var brem = Math.min(hb * 0.95, 24), hattBunn = toppY + 5;
+      var spiss = Math.max(hattBunn - mellomtall(rnd, 22, 30), HIMMEL);
+      var skjev = (rnd() - 0.5) * 14;
+      s += '<path d="M' + P(x - brem * 0.55, hattBunn) +
+        'Q' + P(x + skjev * 0.3 - 2, (hattBunn + spiss) / 2) + ' ' + P(x + skjev, spiss) +
+        'Q' + P(x + skjev * 0.3 + 4, (hattBunn + spiss) / 2) + ' ' + P(x + brem * 0.55, hattBunn) +
+        'Z" fill="#1a0b2e" stroke="' + f.strek + '" stroke-width="2.4" stroke-linejoin="round"/>';
+      s += strek('M' + P(x - brem * 0.5, hattBunn - 3) + 'L' + P(x + brem * 0.5, hattBunn - 3), f.aksent, 3);
+      s += '<ellipse cx="' + tall(x) + '" cy="' + tall(hattBunn) + '" rx="' + tall(brem) +
+        '" ry="3" fill="#1a0b2e" stroke="' + f.strek + '" stroke-width="2.4"/>';
+    } else if (stil === 'vinger') {
+      // flaggermusvinger, tegnet bak kroppen så festet skjules
+      var wy = toppY + (k.bunn - toppY) * 0.35;
+      [-1, 1].forEach(function (side2) {
+        var fx = x + side2 * hb * 0.6;
+        var ytre = Math.max(3, Math.min(97, x + side2 * (hb + mellomtall(rnd, 14, 20))));
+        var tuppY = Math.max(HIMMEL + 3, wy - mellomtall(rnd, 12, 18));
+        var d2 = 'M' + P(fx, wy - 6) + 'Q' + P((fx + ytre) / 2, tuppY) + ' ' + P(ytre, tuppY);
+        var fra = [ytre, tuppY + 3], til = [fx, wy + 10];
+        for (var n = 1; n <= 3; n++) {
+          var p1 = paaVei(fra, til, n / 3), pm = paaVei(fra, til, (n - 0.5) / 3);
+          d2 += 'Q' + P(pm[0], pm[1] - 5) + ' ' + P(p1[0], p1[1]);
+        }
+        s += '<path d="' + d2 + 'Z" fill="#1a0b2e" stroke="' + f.strek +
+          '" stroke-width="2.4" stroke-linejoin="round"/>';
+      });
     }
     return s;
   }
@@ -440,7 +628,7 @@ var Monstre = (function () {
   /* Armene tegnes BAK kroppen. Da skjuler silhuetten festet automatisk, og
      bare den delen som stikker ut synes. Tegnet foran ble de til en strek
      tvers over ansiktet på alle former som er smalere nederst enn på midten. */
-  function armer(rnd, k, f) {
+  function armer(rnd, k, f, hender) {
     var s = '', y = k.topp + (k.bunn - k.topp) * mellomtall(rnd, 0.5, 0.7);
     var opp = rnd() > 0.5;
     [-1, 1].forEach(function (side) {
@@ -450,7 +638,24 @@ var Monstre = (function () {
       var tx = Math.max(6, Math.min(94, fx + side * lengde));
       var ty = y + (opp ? -lengde * 0.7 : lengde * 0.45);
       s += strek('M' + P(fx, y) + 'Q' + P(fx + side * lengde * 0.7, y) + ' ' + P(tx, ty), f.strek, 3);
-      s += sirkel(tx, ty, 3.6, f.aksent);
+      if (hender === 'klo') {
+        // robotklo: en åpen C som peker utover
+        s += strek('M' + P(tx - side * 1, ty - 4.5) + 'Q' + P(tx + side * 5.5, ty) + ' ' +
+          P(tx - side * 1, ty + 4.5), f.aksent, 3);
+      } else {
+        s += sirkel(tx, ty, 3.6, f.aksent);
+      }
+    });
+    return s;
+  }
+
+  function hjul(rnd, k, f) {
+    var s = '', r = mellomtall(rnd, 5.5, 7);
+    var y = Math.min(97 - r, k.bunn + 3);
+    [-1, 1].forEach(function (side) {
+      var x = 50 + side * k.halvbred * 0.55;
+      s += '<circle cx="' + tall(x) + '" cy="' + tall(y) + '" r="' + tall(r) + '" fill="#150b22" stroke="' +
+        f.strek + '" stroke-width="2.6"/>' + sirkel(x, y, r * 0.35, f.aksent);
     });
     return s;
   }
@@ -524,8 +729,179 @@ var Monstre = (function () {
       s += '<ellipse cx="50" cy="' + tall(senterY + (a.bunn - senterY) * 0.45) + '" rx="' +
         tall(hb * 0.6) + '" ry="' + tall((a.bunn - senterY) * 0.48) + '" fill="' + f.aksent +
         '" opacity="0.22"/>';
+    } else if (stil === 'paneler') {
+      // skjøter på sidene og en rad nagler nederst: plater, ikke skinn
+      [-1, 1].forEach(function (side) {
+        s += strek('M' + P(50 + side * hb * 0.95, senterY) + 'L' + P(50 + side * hb * 0.95, a.bunn - 2),
+          f.aksent, 1.6);
+      });
+      [-0.6, 0, 0.6].forEach(function (t) {
+        s += sirkel(50 + t * hb, a.bunn - 3, 1.5, f.aksent);
+      });
+    } else if (stil === 'skjell') {
+      for (var rad = 0; rad < 2; rad++) {
+        var sy = senterY + (a.bunn - senterY) * (0.45 + rad * 0.3);
+        var n = 4 - rad, bred = hb * 1.4 / n;
+        for (var j = 0; j < n; j++) {
+          var sx = 50 - hb * 0.7 + bred * (j + 0.5);
+          s += '<path d="M' + P(sx - bred / 2, sy) + 'Q' + P(sx, sy + bred * 0.6) + ' ' + P(sx + bred / 2, sy) +
+            '" fill="none" stroke="' + f.aksent + '" stroke-width="1.8" opacity="0.5"/>';
+        }
+      }
+    } else if (stil === 'lapper') {
+      /* Et sydd sår — som en kosebamse som har vært med på litt av hvert.
+         Det går loddrett langs den ene kanten: midt på ansiktet havnet det
+         oppå munnen og ble til rot. */
+      var side = rnd() > 0.5 ? 1 : -1, lx = 50 + side * hb * 0.8;
+      var y1 = a.topp + (a.bunn - a.topp) * 0.42, y2 = a.topp + (a.bunn - a.topp) * 0.8;
+      var skraa = side * (rnd() - 0.2) * 3;
+      s += strek('M' + P(lx - skraa, y1) + 'L' + P(lx + skraa, y2), f.strek, 1.8);
+      for (i = 0; i < 4; i++) {
+        var t2 = (i + 0.5) / 4, cx = lx - skraa + skraa * 2 * t2, cy = y1 + (y2 - y1) * t2;
+        s += strek('M' + P(cx - 3, cy) + 'L' + P(cx + 3, cy), f.strek, 1.6);
+      }
     }
     return s;
+  }
+
+  /* ---------- verdenene ---------- */
+
+  /* Hver beat har sine egne monstre, og de skal se ut som de hører hjemme
+     der: roboter i rombasen, maneter og blekkspruter i havet, spøkelser med
+     heksehatt i det gamle huset. Temaet bestemmer hvilke kropper, øyne,
+     munner og pynt generatoren får velge mellom — resten er den samme.
+
+     Monstre uten tema (barnas egne lyder, og BOOM BAP) tegnes nøyaktig som
+     før: hvert valg under trekker like mange terningkast som det gjorde, så
+     ingen eksisterende figur forandrer seg. */
+  var TEMA = {
+    rom: {
+      former: [kroppBoks, kroppKuppel, kroppStolpe, kroppKuppel, kroppBoks],
+      pynt: ['antenner', 'radar', 'antenner', 'radar', 'ingen'],
+      oyne: ['visir', 'visir', 'skjerm', 'skjerm', 'ring'],
+      munn: ['gitter', 'gitter', 'liten', 'sikksakk'],
+      moenster: ['paneler', 'paneler', 'ingen'],
+      hender: 'klo', bein: 'hjul'
+    },
+    jungel: {
+      former: [kroppKlump, kroppKlase, kroppTrekant, kroppOrm, kroppKlump],
+      pynt: ['blader', 'blader', 'blader', 'orer', 'hanekam'],
+      oyne: ['vanlig', 'vanlig', 'lokk', 'glad', 'ring'],
+      munn: ['tunge', 'tenner', 'oval', 'nebb', 'hoggtenner'],
+      moenster: ['flekker', 'striper', 'flekker', 'ingen']
+    },
+    hav: {
+      former: [kroppManet, kroppBlekksprut, kroppManet, kroppBlekksprut, kroppKlump],
+      pynt: ['bobler', 'bobler', 'ingen'],
+      oyne: ['vanlig', 'ring', 'lokk', 'vanlig'],
+      munn: ['oval', 'liten', 'tunge', 'liten'],
+      moenster: ['skjell', 'flekker', 'ingen']
+    },
+    gross: {
+      former: [kroppSpokelse, kroppSpokelse, kroppStolpe, kroppTagg, kroppKlump],
+      pynt: ['heksehatt', 'vinger', 'vinger', 'horn', 'heksehatt'],
+      oyne: ['glod', 'glod', 'glod', 'vanlig', 'kryss'],
+      munn: ['hoggtenner', 'hoggtenner', 'sikksakk', 'tenner'],
+      moenster: ['lapper', 'ingen', 'lapper']
+    }
+  };
+
+  // pynt som tegnes bak kroppen; alt annet legges foran
+  var BAK = { orer: true, horn: true, blader: true, vinger: true };
+
+  /* ---------- pikselmonstrene ---------- */
+
+  /* PIXEL-verdenens monstre er tegnet som i et gammelt tv-spill: et rutenett
+     på 11 x 11 der venstre side speiles over til høyre. Speilingen er det som
+     gjør tilfeldige ruter til en figur — hjernen leser alt symmetrisk som et
+     vesen. Øyne og munn ligger i de samme gruppene som hos de andre
+     monstrene, så de blunker og synger på samme måte. */
+  function tegnPixel(rnd, hue, f) {
+    var N = 11, C = 8, X0 = 6, Y0 = 6, M = 5, x, y;
+    var g = [];
+    for (y = 0; y < N; y++) {
+      g.push([]);
+      for (x = 0; x < N; x++) g[y].push(0);
+    }
+    // 1 = kropp, 2 = aksent, 3 = øye, 4 = munn. dx er avstanden fra midten.
+    function sett(dx, yy, v) {
+      if (yy < 0 || yy >= N || dx > M) return;
+      g[yy][M - dx] = v;
+      g[yy][M + dx] = v;
+    }
+
+    var topp = 2 + Math.floor(rnd() * 2), bunn = 7 + Math.floor(rnd() * 2);
+    var form = Math.floor(rnd() * 3), bredde = [];
+    for (y = topp; y <= bunn; y++) {
+      var t = (y - topp) / (bunn - topp), w;
+      if (form === 0) w = 2 + Math.round(Math.sin(t * Math.PI) * 2);     // rund
+      else if (form === 1) w = y === topp ? 2 : 3;                        // boks
+      else w = Math.max(2, 4 - Math.round(t * 2));                         // stor skalle
+      bredde[y] = w;
+      for (x = 0; x <= w; x++) sett(x, y, 1);
+    }
+
+    var tw = bredde[topp];
+    var pynt = velg(rnd, ['antenner', 'orer', 'horn', 'krone', 'ingen']);
+    if (pynt === 'antenner') { sett(2, topp - 1, 1); sett(3, topp - 2, 2); }
+    else if (pynt === 'orer') { sett(tw, topp - 1, 1); sett(tw, topp - 2, 1); }
+    else if (pynt === 'horn') { sett(tw, topp - 1, 2); sett(tw + 1, topp - 2, 2); }
+    else if (pynt === 'krone') { sett(0, topp - 1, 2); sett(2, topp - 1, 2); }
+
+    if (rnd() > 0.35) {
+      var armRad = topp + 2 + Math.floor(rnd() * 2);
+      var aw = bredde[armRad] + 1;
+      sett(aw, armRad, 1);
+      sett(Math.min(M, aw + (rnd() > 0.5 ? 1 : 0)), armRad - 1, 2);
+    }
+
+    var bein = velg(rnd, ['to', 'tre', 'tentakler', 'to']);
+    if (bein === 'to') { sett(2, bunn + 1, 1); sett(2, bunn + 2, 1); sett(3, bunn + 2, 1); }
+    else if (bein === 'tre') { sett(0, bunn + 1, 1); sett(3, bunn + 1, 1); sett(0, bunn + 2, 2); sett(3, bunn + 2, 2); }
+    else { sett(1, bunn + 1, 1); sett(3, bunn + 1, 1); sett(2, bunn + 2, 1); sett(4, bunn + 2, 1); }
+
+    var oyeRad = topp + 1;
+    var oyne = velg(rnd, [[2], [2], [0], [0, 3]]);
+    oyne.forEach(function (dx) { sett(dx, oyeRad, 3); });
+    var blikk = velg(rnd, [-1, 0, 1, 0.5, -0.5]);
+
+    var munnRad = oyeRad + 2;
+    var mw = Math.min(bredde[munnRad] - 1, 1 + Math.floor(rnd() * 2));
+    for (x = 0; x <= mw; x++) sett(x, munnRad, 4);
+    var tenner = rnd() > 0.5;
+
+    /* Lyset kommer ovenfra: den øverste ruten i hver søyle er lysere og den
+       nederste mørkere. Den mørke kanten rundt alt er det som gjør at det
+       leser som pikselkunst og ikke som en haug firkanter. */
+    var lys = farge(hue, 60), topplys = farge(hue, 76), skygge = farge(hue, 40);
+    var kant = farge(hue, 20, 70);
+    var under = '', kropp = '', oye = '', munn = '';
+    function rute(px, py, b, h, fyll) {
+      return '<rect x="' + tall(px) + '" y="' + tall(py) + '" width="' + tall(b) + '" height="' +
+        tall(h) + '" fill="' + fyll + '"/>';
+    }
+    for (y = 0; y < N; y++) {
+      for (x = 0; x < N; x++) {
+        var v = g[y][x];
+        if (!v) continue;
+        var px = X0 + x * C, py = Y0 + y * C;
+        under += rute(px - 1.5, py - 1.5, C + 3, C + 3, kant);
+        if (v === 1) {
+          var over = y === 0 || !g[y - 1][x], nedre = y === N - 1 || !g[y + 1][x];
+          kropp += rute(px, py, C, C, over ? topplys : (nedre ? skygge : lys));
+        } else if (v === 2) {
+          kropp += rute(px, py, C, C, f.aksent);
+        } else if (v === 3) {
+          oye += rute(px, py, C, C, '#fff') +
+            rute(px + C * 0.25 + blikk * C * 0.2, py + C * 0.3, C * 0.5, C * 0.5, '#150b22');
+        } else {
+          munn += rute(px, py, C, C, '#190c28');
+          if (tenner && (x - M) % 2 === 0) munn += rute(px + 1.5, py, C - 3, C * 0.35, '#fff');
+        }
+      }
+    }
+    return '<svg class="mstr" viewBox="0 0 100 100" shape-rendering="crispEdges" aria-hidden="true">' +
+      under + kropp + '<g class="oye">' + oye + '</g><g class="munn">' + munn + '</g></svg>';
   }
 
   /* ---------- selve monsteret ---------- */
@@ -533,6 +909,7 @@ var Monstre = (function () {
   function tegn(noekkel, hue, opsjoner) {
     var o = opsjoner || {};
     var rnd = terning(fro(noekkel));
+    var T = o.tema ? TEMA[o.tema] : null;
 
     /* To farger, ikke én. Kroppsfargen er monsterets identitet og må matche
        kortet, men en kontrastfarge på horn, hender og mønster er det som
@@ -544,7 +921,9 @@ var Monstre = (function () {
       fyll: farge(hue, mellomtall(rnd, 14, 20), mellomtall(rnd, 55, 75))
     };
 
-    var k = FORMER[Math.floor(rnd() * FORMER.length)](rnd, f);
+    if (o.tema === 'pixel') return tegnPixel(rnd, hue, f);
+
+    var k = (T ? velg(rnd, T.former) : FORMER[Math.floor(rnd() * FORMER.length)])(rnd, f);
     var a = k.ansikt;
     var hoyde = a.bunn - a.topp;
     var hodeX = k.hodeX || 50;
@@ -554,22 +933,24 @@ var Monstre = (function () {
        stikke ut av kroppen tegnes FØR den, så silhuetten dekker overgangen. */
 
     // 1. bein og armer bakerst
-    if (k.beinPlass && rnd() > 0.45) lag.push(bein(rnd, k, f));
-    else if (!k.beinPlass && rnd() > 0.7) lag.push(mangeBein(rnd, k, f));
-    if (rnd() > 0.45) lag.push(armer(rnd, k, f));
+    if (!k.ingenLemmer) {
+      if (k.beinPlass && rnd() > 0.45) lag.push(T && T.bein === 'hjul' ? hjul(rnd, k, f) : bein(rnd, k, f));
+      else if (!k.beinPlass && rnd() > 0.7) lag.push(mangeBein(rnd, k, f));
+      if (rnd() > 0.45) lag.push(armer(rnd, k, f, T && T.hender));
+    }
 
     // 2. pynt som stikker opp bak hodet
-    var pynt = velg(rnd, ['ingen', 'ingen', 'antenner', 'horn', 'orer', 'enhjorning', 'hanekam']);
-    if (pynt === 'orer' || pynt === 'horn') lag.push(hodepynt(rnd, k, f, pynt));
+    var pynt = velg(rnd, T ? T.pynt : ['ingen', 'ingen', 'antenner', 'horn', 'orer', 'enhjorning', 'hanekam']);
+    if (BAK[pynt]) lag.push(hodepynt(rnd, k, f, pynt));
 
     // 3. kroppen
     lag.push(k.deler.join(''));
 
     // 4. mønster oppå kroppen
-    lag.push(moenster(rnd, k, f, velg(rnd, ['ingen', 'ingen', 'flekker', 'striper', 'mage'])));
+    lag.push(moenster(rnd, k, f, velg(rnd, T ? T.moenster : ['ingen', 'ingen', 'flekker', 'striper', 'mage'])));
 
     // 5. pynt som skal ligge foran
-    if (pynt === 'antenner' || pynt === 'enhjorning' || pynt === 'hanekam') {
+    if (pynt !== 'ingen' && !BAK[pynt]) {
       lag.push(hodepynt(rnd, k, f, pynt));
     }
 
@@ -584,11 +965,17 @@ var Monstre = (function () {
       munnY = a.topp + hoyde * mellomtall(rnd, 0.38, 0.55);
     } else {
       var antall = velg(rnd, [1, 1, 2, 2, 2, 2, 3, 3, 4]);
-      var stil = velg(rnd, ['vanlig', 'vanlig', 'vanlig', 'lokk', 'ring', 'glad', 'kryss']);
+      var stil = velg(rnd, T ? T.oyne : ['vanlig', 'vanlig', 'vanlig', 'lokk', 'ring', 'glad', 'kryss']);
       /* Kryss-øyne er en vits som bare virker på ett eller to. På fire på rad
          leser «XXXX» som tekst, ikke som et ansikt. */
       if (antall > 2 && (stil === 'kryss' || stil === 'glad')) stil = 'vanlig';
+      if (stil === 'skjerm' && antall > 2) antall = 2;
+    }
 
+    if (stil === 'visir') {
+      lag.push(visir(hodeX, oyeY, a.halvbred, f, rnd() - 0.5));
+      munnY = Math.max(munnY, oyeY + 13);
+    } else if (!paaStilk) {
       /* Fire øyne settes i kvadrat, ikke på rekke. En rekke på fire blir en
          knapperad; to og to over hverandre blir et insekt. */
       var kvadrat = antall === 4;
@@ -616,7 +1003,9 @@ var Monstre = (function () {
       steder.forEach(function (p, i) {
         lag.push(oye(p[0], p[1], p[2], stil, f, rnd, blikk));
         if (harBryn && (!kvadrat || i < 2)) {
-          lag.push(bryn(p[0], p[1] - p[2] * 1.55, p[2], i === 0 ? helning : -helning, f));
+          // brynet holdes under taket; på høye figurer ble det ellers klippet bort
+          var brynY = Math.max(p[1] - p[2] * 1.55, 3 + Math.abs(helning));
+          lag.push(bryn(p[0], brynY, p[2], i === 0 ? helning : -helning, f));
         }
       });
       if (kvadrat) munnY = Math.max(munnY, oyeY + r * 2.6);
@@ -627,7 +1016,7 @@ var Monstre = (function () {
     // holder munnen innenfor ansiktet uansett hva øynene har dyttet den til
     munnY = Math.min(munnY, a.bunn - munnB * 0.6 - 3);
     lag.push(munn(hodeX, munnY, munnB,
-      velg(rnd, ['oval', 'tenner', 'tenner', 'hoggtenner', 'tunge', 'sikksakk', 'liten', 'nebb']),
+      velg(rnd, T ? T.munn : ['oval', 'tenner', 'tenner', 'hoggtenner', 'tunge', 'sikksakk', 'liten', 'nebb']),
       f, rnd));
 
     if (o.merke) {
