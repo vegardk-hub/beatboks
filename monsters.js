@@ -1769,9 +1769,599 @@ var Monstre = (function () {
     return svg(s + '<g class="munn">' + m + '</g>');
   }
 
+  /* ---------- tegneserie ---------- */
+
+  /* Superhelter som i et tegneseriehefte: tykk svart strek, flate farger,
+     rasterprikker i skyggene og en eksplosjon bak med «POW!». Heltene er
+     fortsatt monstre — med horn, antenner og maske. */
+  function stjerneform(cx, cy, ytre, indre, n, rnd) {
+    var p = [];
+    for (var i = 0; i < n * 2; i++) {
+      var a = i / (n * 2) * Math.PI * 2 - Math.PI / 2;
+      var r = (i % 2 ? indre : ytre) * (1 + (rnd() - 0.5) * 0.12);
+      p.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+    }
+    return p;
+  }
+
+  function tegnTegneserie(rnd, hue, f, uid) {
+    var BLEKK = '#111';
+    var hud = farge(hue, 60, 78);
+    var drakt = velg(rnd, ['hsl(215 85% 50%)', 'hsl(355 85% 52%)', 'hsl(140 70% 40%)', 'hsl(275 70% 52%)', 'hsl(28 95% 52%)']);
+    var kappeF = velg(rnd, ['hsl(355 85% 50%)', 'hsl(48 100% 52%)', 'hsl(200 90% 48%)', 'hsl(290 70% 50%)']);
+    var maskeF = velg(rnd, [BLEKK, kappeF, drakt]);
+    function linje(d, fyll, b) {
+      return '<path d="' + d + '" fill="' + fyll + '" stroke="' + BLEKK + '" stroke-width="' + (b || 2.4) + '" stroke-linejoin="round"/>';
+    }
+    var s = '<defs><pattern id="' + uid + 'p" width="3.6" height="3.6" patternUnits="userSpaceOnUse">' +
+      '<circle cx="1.8" cy="1.8" r="0.85" fill="#000" opacity="0.3"/></pattern>' +
+      '<pattern id="' + uid + 'q" width="4" height="4" patternUnits="userSpaceOnUse">' +
+      '<circle cx="2" cy="2" r="1.1" fill="hsl(20 100% 55%)" opacity="0.55"/></pattern></defs>';
+    var smell = mangekant(stjerneform(50, 50, 45, 33, 12, rnd));
+    s += linje(smell, '#ffd93e', 2) + '<path d="' + smell + '" fill="url(#' + uid + 'q)"/>';
+    s += '<text x="21" y="22" transform="rotate(-14 21 22)" text-anchor="middle" font-size="11" font-weight="900" ' +
+      'font-family="Impact, \'Arial Black\', sans-serif" fill="hsl(355 90% 52%)" stroke="' + BLEKK + '" stroke-width="0.8">' +
+      velg(rnd, ['POW!', 'BAM!', 'ZAP!', 'WOW!', 'BOOM!', 'KRASJ!']) + '</text>';
+
+    var hy = mellomtall(rnd, 32, 35), hr = mellomtall(rnd, 12, 14);
+    // helten tegnes litt større enn eksplosjonen bak, ellers drukner den i kortet
+    s += '<g transform="translate(-5 -5.8) scale(1.1)">';
+    // kappen bak alt
+    s += linje('M' + P(37, 50) + 'L' + P(63, 50) + 'Q' + P(74, 70) + ' ' + P(76, 88) + 'Q' + P(68, 84) + ' ' + P(63, 89) +
+      'Q' + P(56, 84) + ' ' + P(50, 89) + 'Q' + P(44, 84) + ' ' + P(37, 89) + 'Q' + P(32, 84) + ' ' + P(24, 88) +
+      'Q' + P(26, 70) + ' ' + P(37, 50) + 'Z', kappeF);
+
+    // bein og støvler
+    [-1, 1].forEach(function (sd) {
+      var x = 50 + sd * 5.5;
+      s += linje(hjorneBane([[x - 3.6, 72], [x + 3.6, 72], [x + 3.4, 86], [x - 3.4, 86]], 0.15), drakt);
+      s += linje(hjorneBane([[x - 4, 84], [x + 4, 84], [x + 4 + sd * 2, 92], [x - 4 + sd * 0.5, 92]], 0.25), kappeF);
+    });
+
+    // armene: på hoftene, en knyttneve i været, eller begge opp
+    var pose = velg(rnd, ['hofter', 'opp', 'kraft']);
+    [-1, 1].forEach(function (sd) {
+      var sx = 50 + sd * 14, sy = 53, albue, hand;
+      if (pose === 'kraft' || (pose === 'opp' && sd === 1)) {
+        albue = [50 + sd * 27, 50]; hand = [50 + sd * (pose === 'opp' ? 22 : 25), pose === 'opp' ? 24 : 36];
+      } else {
+        albue = [50 + sd * 25, 60]; hand = [50 + sd * 15, 70];
+      }
+      s += linje(tykkKurve([sx, sy], albue, hand, 3.4, 3), drakt);
+      s += linje(ellD(hand[0], hand[1], 4, 4), hud, 2);
+    });
+
+    // brystkassen, med rasterskygge på høyre side og merket midt på
+    var torso = hjorneBane([[34, 49], [66, 49], [59, 75], [41, 75]], 0.2);
+    s += linje(torso, drakt) + '<path d="M' + P(50, 49) + 'L' + P(66, 49) + 'L' + P(59, 75) + 'L' + P(50, 75) + 'Z" fill="url(#' + uid + 'p)"/>';
+    s += '<rect x="41" y="70" width="18" height="4.5" fill="hsl(48 100% 55%)" stroke="' + BLEKK + '" stroke-width="1.8"/>';
+    s += linje(ellD(50, 60, 6.8, 6.8), 'hsl(48 100% 60%)', 1.8);
+    var merke = velg(rnd, ['lyn', 'stjerne', 'hjerte']);
+    if (merke === 'lyn') s += '<path d="' + mangekant([[51.5, 54.5], [46.5, 61], [50, 61], [48.5, 65.5], [53.5, 59], [50, 59]]) + '" fill="hsl(355 90% 50%)"/>';
+    else if (merke === 'stjerne') s += '<path d="' + mangekant(stjerneform(50, 60.4, 5, 2.2, 5, function () { return 0.5; })) + '" fill="hsl(355 90% 50%)"/>';
+    else s += '<path d="M' + P(50, 64) + 'C' + P(44, 60) + ' ' + P(46, 55) + ' ' + P(50, 58) + 'C' + P(54, 55) + ' ' + P(56, 60) + ' ' + P(50, 64) + 'Z" fill="hsl(355 90% 50%)"/>';
+
+    // monsterpynt bak hodet
+    var pynt = velg(rnd, ['orer', 'horn', 'antenne', 'hanekam', 'ingen']);
+    if (pynt === 'horn') {
+      [-1, 1].forEach(function (sd) { s += linje(tykkKurve([50 + sd * hr * 0.55, hy - hr * 0.6], [50 + sd * hr * 1.1, hy - hr * 1.1], [50 + sd * hr * 0.9, hy - hr * 1.7], 3, 0.6), '#f4efe0', 2); });
+    } else if (pynt === 'orer') {
+      [-1, 1].forEach(function (sd) { s += linje(mangekant([[50 + sd * hr * 0.4, hy - hr * 0.8], [50 + sd * hr * 1.05, hy - hr * 1.6], [50 + sd * hr * 0.95, hy - hr * 0.3]]), hud, 2); });
+    } else if (pynt === 'antenne') {
+      s += '<path d="M' + P(50, hy - hr) + 'L' + P(53, hy - hr - 6) + '" stroke="' + BLEKK + '" stroke-width="2"/>' + linje(ellD(53, hy - hr - 7, 2.6, 2.6), kappeF, 1.6);
+    } else if (pynt === 'hanekam') {
+      s += linje('M' + P(44, hy - hr + 3) + 'L' + P(46, hy - hr - 8) + 'L' + P(50, hy - hr - 1) + 'L' + P(53, hy - hr - 10) + 'L' + P(56, hy - hr + 3) + 'Z', BLEKK, 1.6);
+    }
+
+    s += linje(ellD(50, hy, hr, hr * 1.02), hud, 2.6);
+    s += '<path d="M' + P(50, hy - hr) + 'A' + tall(hr) + ' ' + tall(hr) + ' 0 0 1 ' + P(50, hy + hr) + 'Z" fill="url(#' + uid + 'p)"/>';
+
+    // masken med hvite øyne uten pupiller — heltenes blikk
+    var ey = hy - hr * 0.08;
+    s += linje('M' + P(50 - hr - 1.5, ey - 1) + 'Q' + P(50 - hr * 0.55, ey - 7.5) + ' ' + P(50, ey - 3.5) + 'Q' + P(50 + hr * 0.55, ey - 7.5) + ' ' +
+      P(50 + hr + 1.5, ey - 1) + 'Q' + P(50 + hr * 0.8, ey + 6.5) + ' ' + P(50 + 2.5, ey + 4) + 'L' + P(47.5, ey + 4) +
+      'Q' + P(50 - hr * 0.8, ey + 6.5) + ' ' + P(50 - hr - 1.5, ey - 1) + 'Z', maskeF, 2);
+    [-1, 1].forEach(function (sd) {
+      s += '<g class="oye"><path d="M' + P(50 + sd * hr * 0.2, ey + 1.2) + 'Q' + P(50 + sd * hr * 0.45, ey - 3.6) + ' ' + P(50 + sd * hr * 0.72, ey + 0.2) +
+        'Q' + P(50 + sd * hr * 0.46, ey + 2.4) + ' ' + P(50 + sd * hr * 0.2, ey + 1.2) + 'Z" fill="#fff" stroke="' + BLEKK + '" stroke-width="1.2"/></g>';
+    });
+    var my = hy + hr * 0.52;
+    s += '<g class="munn"><path d="M' + P(45, my - 1) + 'Q' + P(50, my + 5) + ' ' + P(55, my - 1) + 'Z" fill="#5a0f2a" stroke="' + BLEKK +
+      '" stroke-width="1.6" stroke-linejoin="round"/><rect x="46.2" y="' + tall(my - 0.8) + '" width="7.6" height="1.8" fill="#fff"/></g>';
+    return svg(s + '</g>');
+  }
+
+  /* ---------- glassmaleri ---------- */
+
+  /* Folk fra borgen i et kirkevindu: en spissbue delt i ruter av bly, og
+     figurene i sterke glassfarger med tykke blylinjer rundt. Et svakt lys
+     innenfra gjør at det ser ut som sol som skinner gjennom. */
+  function tegnGlassmaleri(rnd, hue, f, uid) {
+    var BLY = '#15121a';
+    var bue = 'M' + P(14, 95) + 'L' + P(14, 42) + 'Q' + P(14, 6) + ' ' + P(50, 5) + 'Q' + P(86, 6) + ' ' + P(86, 42) + 'L' + P(86, 95) + 'Z';
+    function glass(d, fyll, b) {
+      return '<path d="' + d + '" fill="' + fyll + '" stroke="' + BLY + '" stroke-width="' + (b || 2.4) + '" stroke-linejoin="round"/>';
+    }
+    var s = '<defs><clipPath id="' + uid + 'v"><path d="' + bue + '"/></clipPath>' +
+      '<radialGradient id="' + uid + 'l" cx="0.5" cy="0.45" r="0.6"><stop offset="0" stop-color="#fff" stop-opacity="0.35"/>' +
+      '<stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>';
+    // rutene bak figuren, i to glassfarger som veksler
+    s += '<g clip-path="url(#' + uid + 'v)">';
+    var n = 10;
+    for (var i = 0; i < n; i++) {
+      var a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2;
+      s += glass(mangekant([[50, 58], [50 + Math.cos(a0) * 80, 58 + Math.sin(a0) * 80], [50 + Math.cos(a1) * 80, 58 + Math.sin(a1) * 80]]),
+        farge((hue + (i % 2 ? 0 : 28)) % 360, i % 2 ? 34 : 44, 70), 1.6);
+    }
+    s += '<circle cx="50" cy="58" r="33" fill="none" stroke="' + BLY + '" stroke-width="1.6"/></g>';
+
+    var hud = 'hsl(32 70% 78%)', kappe = farge((hue + 180) % 360, 42, 75), gull = 'hsl(45 90% 55%)';
+    var hvem = velg(rnd, ['ridder', 'konge', 'dronning', 'narr', 'trollmann']);
+
+    // kappe/skuldre nederst
+    s += glass('M' + P(20, 95) + 'Q' + P(24, 70) + ' ' + P(50, 67) + 'Q' + P(76, 70) + ' ' + P(80, 95) + 'Z', kappe);
+    s += '<path d="M' + P(50, 68) + 'L' + P(50, 95) + '" stroke="' + BLY + '" stroke-width="1.8"/>';
+
+    var oyne = '', munn = '';
+    if (hvem === 'ridder') {
+      s += glass('M' + P(50, 29) + 'Q' + P(56, 14) + ' ' + P(62, 8) + 'Q' + P(60, 20) + ' ' + P(54, 30) + 'Z', farge(hue, 55, 85), 1.8);
+      s += glass('M' + P(35, 64) + 'L' + P(35, 44) + 'Q' + P(35, 28) + ' ' + P(50, 27) + 'Q' + P(65, 28) + ' ' + P(65, 44) + 'L' + P(65, 64) + 'Z', '#c9d2dc');
+      s += glass(hjorneBane([[36, 42], [64, 42], [64, 50], [36, 50]], 0.2), '#7f8b99', 1.8);
+      oyne = '<g class="oye"><rect x="39" y="45" width="8.5" height="2.4" rx="1.2" fill="#ffd23e"/></g>' +
+        '<g class="oye"><rect x="52.5" y="45" width="8.5" height="2.4" rx="1.2" fill="#ffd23e"/></g>';
+      munn = '<g class="munn">' + [44, 48, 52, 56].map(function (x) { return sirkel(x, 57, 1.1, BLY); }).join('') + '</g>';
+      s += glass(hjorneBane([[41, 72], [59, 72], [59, 82], [50, 92], [41, 82]], 0.15), farge(hue, 50, 75), 2);
+      s += '<path d="M' + P(50, 74) + 'L' + P(50, 88) + 'M' + P(44, 79) + 'L' + P(56, 79) + '" stroke="' + gull + '" stroke-width="2.6"/>';
+    } else {
+      s += glass(ellD(50, 50, 13.5, 14.5), hud);
+      var ey = 48;
+      [-1, 1].forEach(function (sd) {
+        oyne += '<g class="oye">' + sirkel(50 + sd * 5, ey, 1.9, BLY) + sirkel(50 + sd * 5 - 0.6, ey - 0.6, 0.6, '#fff') + '</g>';
+      });
+      munn = '<g class="munn"><ellipse cx="50" cy="56" rx="3" ry="1.8" fill="hsl(355 60% 40%)" stroke="' + BLY + '" stroke-width="1"/></g>';
+      if (hvem === 'konge') {
+        s += glass('M' + P(38, 58) + 'Q' + P(50, 78) + ' ' + P(62, 58) + 'Q' + P(56, 62) + ' ' + P(50, 60) + 'Q' + P(44, 62) + ' ' + P(38, 58) + 'Z', farge((hue + 30) % 360, 60, 40), 1.8);
+        s += glass(mangekant([[36, 40], [36, 26], [42, 33], [50, 22], [58, 33], [64, 26], [64, 40]]), gull);
+        s += sirkel(50, 34, 2, 'hsl(355 90% 50%)') + sirkel(42.5, 36, 1.5, 'hsl(210 90% 50%)') + sirkel(57.5, 36, 1.5, 'hsl(140 80% 40%)');
+      } else if (hvem === 'dronning') {
+        s += glass('M' + P(40, 38) + 'L' + P(58, 6) + 'L' + P(62, 10) + 'L' + P(60, 38) + 'Z', farge(hue, 55, 80));
+        s += '<path d="M' + P(59, 8) + 'Q' + P(76, 30) + ' ' + P(70, 60) + '" fill="none" stroke="#f3eaff" stroke-width="3" opacity="0.7"/>';
+        s += glass('M' + P(37, 44) + 'Q' + P(34, 60) + ' ' + P(40, 64) + 'L' + P(40, 48) + 'Z', farge((hue + 30) % 360, 55, 45), 1.6);
+        s += glass('M' + P(63, 44) + 'Q' + P(66, 60) + ' ' + P(60, 64) + 'L' + P(60, 48) + 'Z', farge((hue + 30) % 360, 55, 45), 1.6);
+        s += '<path d="M' + P(40, 68) + 'Q' + P(50, 75) + ' ' + P(60, 68) + '" fill="none" stroke="' + gull + '" stroke-width="2"/>' + sirkel(50, 72, 2, 'hsl(200 90% 55%)');
+      } else if (hvem === 'narr') {
+        var a = farge(hue, 55, 80), b = farge((hue + 180) % 360, 55, 80);
+        s += glass('M' + P(37, 42) + 'Q' + P(26, 30) + ' ' + P(18, 34) + 'Q' + P(30, 22) + ' ' + P(44, 34) + 'Z', a, 2);
+        s += glass('M' + P(63, 42) + 'Q' + P(74, 30) + ' ' + P(82, 34) + 'Q' + P(70, 22) + ' ' + P(56, 34) + 'Z', a, 2);
+        s += glass('M' + P(40, 40) + 'Q' + P(44, 20) + ' ' + P(50, 10) + 'Q' + P(56, 20) + ' ' + P(60, 40) + 'Z', b, 2);
+        s += sirkel(18, 34, 2.4, gull) + sirkel(82, 34, 2.4, gull) + sirkel(50, 10, 2.4, gull);
+        var tagger = 'M' + P(33, 68);
+        for (var k = 0; k < 6; k++) tagger += 'L' + P(35.7 + k * 5.7, k % 2 ? 68 : 75) + 'L' + P(38.5 + k * 5.7, 68);
+        s += glass(tagger + 'Z', a, 1.6);
+      } else {
+        s += glass('M' + P(38, 58) + 'Q' + P(44, 86) + ' ' + P(50, 90) + 'Q' + P(56, 86) + ' ' + P(62, 58) + 'Q' + P(50, 64) + ' ' + P(38, 58) + 'Z', '#eef0f5', 1.8);
+        s += glass('M' + P(28, 40) + 'Q' + P(50, 34) + ' ' + P(72, 40) + 'L' + P(60, 36) + 'L' + P(54, 9) + 'L' + P(40, 37) + 'Z', farge(hue, 45, 70));
+        s += '<path d="' + mangekant(stjerneform(49, 26, 3, 1.3, 5, function () { return 0.5; })) + '" fill="' + gull + '"/>' + sirkel(54, 17, 1.2, gull);
+        [-1, 1].forEach(function (sd) {
+          s += '<path d="M' + P(50 + sd * 7.5, 44.5) + 'L' + P(50 + sd * 2.5, 45.5) + '" stroke="#eef0f5" stroke-width="2.2" stroke-linecap="round"/>';
+        });
+      }
+    }
+    s += oyne + munn;
+    s += '<path d="' + bue + '" fill="url(#' + uid + 'l)"/>';
+    s += '<path d="' + bue + '" fill="none" stroke="' + BLY + '" stroke-width="3.2"/>';
+    return svg(s);
+  }
+
+  /* ---------- stjernebilder ---------- */
+
+  /* Figurene er stjernebilder på en himmel: stjerner forbundet med tynne
+     streker, og en svak tegning bak, som på et gammelt stjernekart. Øynene er
+     de to klareste stjernene, og munnen er en liten bue av stjerner. */
+  function tegnStjernebilde(rnd, hue, f, uid) {
+    var s = '<defs><radialGradient id="' + uid + 'h" cx="0.5" cy="0.4" r="0.65"><stop offset="0" stop-color="' + farge(hue, 16, 60) +
+      '"/><stop offset="1" stop-color="#05060f"/></radialGradient></defs>' +
+      '<circle cx="50" cy="50" r="46" fill="url(#' + uid + 'h)" stroke="' + farge(hue, 50, 60) + '" stroke-width="1" opacity="0.95"/>';
+    s += '<ellipse cx="50" cy="50" rx="44" ry="12" transform="rotate(-30 50 50)" fill="' + farge(hue, 70, 70) + '" opacity="0.08"/>';
+    for (var i = 0; i < 24; i++) {
+      var a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * 42;
+      s += '<circle cx="' + tall(50 + Math.cos(a) * r) + '" cy="' + tall(50 + Math.sin(a) * r) + '" r="' + tall(0.3 + rnd() * 0.5) +
+        '" fill="#fff" opacity="' + tall(0.3 + rnd() * 0.5) + '"/>';
+    }
+
+    var type = velg(rnd, ['romvesen', 'bjorn', 'katt', 'fisk', 'fugl', 'blekk']);
+    var rx = mellomtall(rnd, 18, 23), ry = mellomtall(rnd, 16, 20), cy = type === 'blekk' ? 42 : 48;
+    var n = 7 + Math.floor(rnd() * 3), hode = [];
+    for (i = 0; i < n; i++) {
+      var v = i / n * Math.PI * 2 - Math.PI / 2, jr = 1 + (rnd() - 0.5) * 0.14;
+      hode.push([50 + Math.cos(v) * rx * jr, cy + Math.sin(v) * ry * jr]);
+    }
+    var streker = [], stjerner = hode.slice(), lys = '#d6e8ff';
+    for (i = 0; i < n; i++) streker.push([hode[i], hode[(i + 1) % n]]);
+    var topp = hode[0];
+    function ekstra(p) { stjerner.push(p); return p; }
+    if (type === 'romvesen') {
+      [-1, 1].forEach(function (sd) {
+        var b = hode[sd === -1 ? n - 1 : 1];
+        var ende = ekstra([b[0] + sd * 8, Math.max(9, b[1] - 16)]);
+        streker.push([b, ende]);
+      });
+    } else if (type === 'bjorn' || type === 'katt') {
+      [-1, 1].forEach(function (sd) {
+        var b1 = hode[sd === -1 ? n - 1 : 1], b2 = hode[sd === -1 ? n - 2 : 2];
+        var spiss = ekstra(type === 'katt' ? [b1[0] + sd * 6, b1[1] - 13] : [(b1[0] + b2[0]) / 2 + sd * 6, Math.min(b1[1], b2[1]) - 7]);
+        streker.push([b1, spiss], [spiss, b2]);
+      });
+      if (type === 'katt') {
+        [-1, 1].forEach(function (sd) {
+          streker.push([[50 + sd * rx * 0.45, cy + ry * 0.35], ekstra([50 + sd * (rx + 8), cy + ry * 0.25])]);
+        });
+      }
+    } else if (type === 'fisk') {
+      var h1 = hode[Math.floor(n / 4)], h2 = hode[Math.floor(n / 4) + 1];
+      var t1 = ekstra([Math.min(93, h1[0] + 16), h1[1] - 10]), t2 = ekstra([Math.min(93, h2[0] + 16), h2[1] + 10]);
+      streker.push([h1, t1], [t1, t2], [t2, h2]);
+    } else if (type === 'fugl') {
+      [-1, 1].forEach(function (sd) {
+        var b = [50 + sd * rx, cy];
+        var m = ekstra([50 + sd * (rx + 12), cy - 14]), e = ekstra([50 + sd * (rx + 22), Math.max(10, cy - 6)]);
+        streker.push([b, m], [m, e]);
+      });
+    } else {
+      for (var k = 0; k < 5; k++) {
+        var fx = 50 - rx * 0.7 + k * rx * 0.35, fy = cy + ry * 0.8;
+        var p1 = ekstra([fx + (k % 2 ? 3 : -3), fy + 12]), p2 = ekstra([fx + (k % 2 ? -2 : 2), Math.min(92, fy + 24)]);
+        streker.push([[fx, fy], p1], [p1, p2]);
+      }
+    }
+    if (type !== 'blekk' && type !== 'fugl' && type !== 'fisk') {
+      // en liten kropp under hodet
+      var kb = ekstra([50 - rx * 0.6, Math.min(92, cy + ry + 18)]), kh = ekstra([50 + rx * 0.6, Math.min(92, cy + ry + 18)]);
+      var bunn = hode[Math.floor(n / 2)];
+      streker.push([bunn, kb], [bunn, kh], [kb, kh]);
+    }
+
+    // den svake tegningen bak, så formen synes mellom stjernene
+    s += '<path d="' + glattBane(hode) + '" fill="' + farge(hue, 60, 70) + '" opacity="0.18" stroke="' + farge(hue, 75, 85) + '" stroke-width="1" stroke-opacity="0.5"/>';
+    s += '<path d="' + streker.map(function (st) { return 'M' + P(st[0][0], st[0][1]) + 'L' + P(st[1][0], st[1][1]); }).join('') +
+      '" stroke="' + lys + '" stroke-width="0.9" opacity="0.6"/>';
+    stjerner.forEach(function (p, j) {
+      var r2 = j % 3 === 0 ? 1.9 : 1.3;
+      s += '<circle cx="' + tall(p[0]) + '" cy="' + tall(p[1]) + '" r="' + tall(r2 * 2.4) + '" fill="' + farge(hue, 80, 100) + '" opacity="0.28"/>' + sirkel(p[0], p[1], r2, '#fff');
+    });
+    if (topp) {
+      s += '<path d="M' + P(topp[0], topp[1] - 5) + 'L' + P(topp[0], topp[1] + 5) + 'M' + P(topp[0] - 5, topp[1]) + 'L' + P(topp[0] + 5, topp[1]) +
+        '" stroke="#fff" stroke-width="0.8" opacity="0.8"/>';
+    }
+    var ey = cy - ry * 0.1;
+    [-1, 1].forEach(function (sd) {
+      var x = 50 + sd * rx * 0.36;
+      s += '<g class="oye"><circle cx="' + tall(x) + '" cy="' + tall(ey) + '" r="6" fill="' + farge(hue, 80, 100) + '" opacity="0.35"/>' +
+        sirkel(x, ey, 2.7, '#fff') + '<path d="M' + P(x, ey - 5.5) + 'L' + P(x, ey + 5.5) + 'M' + P(x - 5.5, ey) + 'L' + P(x + 5.5, ey) +
+        '" stroke="#fff" stroke-width="0.8"/></g>';
+    });
+    var my = cy + ry * 0.42;
+    s += '<g class="munn"><path d="M' + P(44, my) + 'Q' + P(50, my + 5) + ' ' + P(56, my) + '" fill="none" stroke="' + lys + '" stroke-width="1" opacity="0.8"/>' +
+      sirkel(44, my, 1.2, '#fff') + sirkel(50, my + 2.5, 1.4, '#fff') + sirkel(56, my, 1.2, '#fff') + '</g>';
+    return svg(s);
+  }
+
+  /* ---------- frukt ---------- */
+
+  /* Frukt med ansikt. Fargene er fruktens egne — et eple skal være rødt
+     eller grønt, ikke lilla — så barna kjenner igjen hva det er. Skyggen og
+     glansen klippes til fruktens form. */
+  function tegnFrukt(rnd, hue, f, uid) {
+    var frukt = velg(rnd, ['eple', 'banan', 'jordbaer', 'melon', 'appelsin', 'ananas', 'avokado', 'paere']);
+    var kropp, fyll, kant, pynt = '', bak = '', inni = '', a;
+    var gronn = 'hsl(110 60% 40%)', stilk = 'hsl(25 50% 30%)';
+    function blad(x, y, vinkel, l) {
+      return '<ellipse cx="' + tall(x) + '" cy="' + tall(y) + '" rx="' + tall(l) + '" ry="' + tall(l * 0.42) + '" transform="rotate(' + vinkel + ' ' +
+        tall(x) + ' ' + tall(y) + ')" fill="' + gronn + '" stroke="hsl(110 60% 25%)" stroke-width="1.6"/>';
+    }
+    if (frukt === 'eple' || frukt === 'appelsin') {
+      var farg = frukt === 'appelsin' ? 30 : velg(rnd, [355, 355, 95, 48]);
+      fyll = 'hsl(' + farg + ' 85% 54%)'; kant = 'hsl(' + farg + ' 70% 30%)';
+      kropp = frukt === 'eple'
+        ? glattBane([[50, 34], [62, 28], [76, 36], [80, 56], [72, 78], [58, 88], [50, 85], [42, 88], [28, 78], [20, 56], [24, 36], [38, 28]])
+        : ellD(50, 60, 29, 28);
+      pynt = '<path d="M' + P(50, 34) + 'Q' + P(49, 24) + ' ' + P(53, 18) + '" fill="none" stroke="' + stilk + '" stroke-width="3" stroke-linecap="round"/>' + blad(59, 23, -25, 8);
+      if (frukt === 'appelsin') {
+        for (var k = 0; k < 14; k++) pynt += sirkel(mellomtall(rnd, 30, 70), mellomtall(rnd, 40, 80), 0.7, 'hsl(28 80% 42%)');
+      }
+      a = { x: 50, y: 60, b: 26 };
+    } else if (frukt === 'banan') {
+      fyll = 'hsl(50 95% 58%)'; kant = 'hsl(40 70% 32%)';
+      kropp = 'M' + P(24, 26) + 'Q' + P(24, 82) + ' ' + P(76, 84) + 'Q' + P(86, 84) + ' ' + P(82, 75) + 'Q' + P(42, 68) + ' ' + P(36, 24) + 'Z';
+      pynt = sirkel(30, 24, 3, stilk) + sirkel(82, 79, 2.2, stilk);
+      a = { x: 44, y: 62, b: 18 };
+    } else if (frukt === 'jordbaer') {
+      fyll = 'hsl(352 85% 52%)'; kant = 'hsl(352 70% 30%)';
+      kropp = 'M' + P(50, 90) + 'Q' + P(18, 62) + ' ' + P(24, 42) + 'Q' + P(30, 30) + ' ' + P(50, 32) + 'Q' + P(70, 30) + ' ' + P(76, 42) + 'Q' + P(82, 62) + ' ' + P(50, 90) + 'Z';
+      for (k = 0; k < 16; k++) {
+        var fx = mellomtall(rnd, 30, 70), fy = mellomtall(rnd, 40, 78);
+        if (Math.abs(fx - 50) < 14 && fy > 44 && fy < 66) continue;          // ikke frø i ansiktet
+        pynt += '<ellipse cx="' + tall(fx) + '" cy="' + tall(fy) + '" rx="0.8" ry="1.3" fill="hsl(50 95% 70%)"/>';
+      }
+      for (k = 0; k < 5; k++) pynt += blad(50 + (k - 2) * 5.5, 31 - Math.abs(k - 2) * -1.5, (k - 2) * 28, 7);
+      a = { x: 50, y: 54, b: 22 };
+    } else if (frukt === 'melon') {
+      fyll = 'hsl(352 85% 60%)'; kant = 'hsl(130 60% 25%)';
+      kropp = 'M' + P(12, 40) + 'L' + P(88, 40) + 'A38 38 0 0 1 ' + P(12, 40) + 'Z';
+      pynt = '<path d="M' + P(14, 41) + 'A36 36 0 0 0 ' + P(86, 41) + '" fill="none" stroke="hsl(80 60% 88%)" stroke-width="4"/>' +
+        '<path d="M' + P(12, 40) + 'A38 38 0 0 0 ' + P(88, 40) + '" fill="none" stroke="hsl(130 60% 35%)" stroke-width="4.5"/>';
+      [[30, 50], [70, 50], [36, 64], [64, 64], [50, 72]].forEach(function (p) {
+        pynt += '<ellipse cx="' + p[0] + '" cy="' + p[1] + '" rx="1.3" ry="2.2" fill="#2a1a18"/>';
+      });
+      a = { x: 50, y: 52, b: 20 };
+    } else if (frukt === 'ananas') {
+      fyll = 'hsl(42 90% 55%)'; kant = 'hsl(32 70% 30%)';
+      kropp = ellD(50, 64, 22, 26);
+      for (k = 0; k < 7; k++) {
+        bak += '<path d="' + mangekant([[44 + k * 2, 42], [30 + k * 6.7, Math.max(8, 14 + Math.abs(k - 3) * 5)], [48 + k * 2 - 2, 44]]) +
+          '" fill="' + (k % 2 ? gronn : 'hsl(120 55% 32%)') + '" stroke="hsl(110 60% 22%)" stroke-width="1.4" stroke-linejoin="round"/>';
+      }
+      for (k = -3; k <= 3; k++) {
+        inni += '<path d="M' + P(50 + k * 8 - 14, 40) + 'L' + P(50 + k * 8 + 14, 90) + 'M' + P(50 + k * 8 + 14, 40) + 'L' + P(50 + k * 8 - 14, 90) +
+          '" stroke="' + kant + '" stroke-width="1" opacity="0.35"/>';
+      }
+      a = { x: 50, y: 66, b: 20 };
+    } else if (frukt === 'avokado') {
+      fyll = 'hsl(80 55% 68%)'; kant = 'hsl(100 55% 20%)';
+      kropp = 'M' + P(50, 18) + 'Q' + P(64, 18) + ' ' + P(68, 42) + 'Q' + P(80, 64) + ' ' + P(72, 82) + 'Q' + P(50, 98) + ' ' + P(28, 82) +
+        'Q' + P(20, 64) + ' ' + P(32, 42) + 'Q' + P(36, 18) + ' ' + P(50, 18) + 'Z';
+      bak = '<path d="' + kropp + '" fill="hsl(100 55% 26%)" transform="translate(50 57) scale(1.1) translate(-50 -57)"/>';
+      pynt = '<circle cx="50" cy="72" r="11" fill="hsl(25 55% 38%)" stroke="hsl(25 50% 22%)" stroke-width="1.6"/>' +
+        '<ellipse cx="46" cy="68" rx="3" ry="2" fill="#fff" opacity="0.35"/>';
+      a = { x: 50, y: 46, b: 18 };
+    } else {
+      fyll = velg(rnd, ['hsl(75 70% 55%)', 'hsl(55 85% 58%)']); kant = 'hsl(80 50% 28%)';
+      kropp = glattBane([[50, 28], [58, 32], [62, 46], [74, 60], [74, 78], [62, 90], [38, 90], [26, 78], [26, 60], [38, 46], [42, 32]]);
+      pynt = '<path d="M' + P(50, 30) + 'Q' + P(51, 22) + ' ' + P(54, 17) + '" fill="none" stroke="' + stilk + '" stroke-width="2.6" stroke-linecap="round"/>' + blad(59, 21, -20, 7);
+      a = { x: 50, y: 66, b: 22 };
+    }
+
+    var s = '<defs><clipPath id="' + uid + 'k"><path d="' + kropp + '"/></clipPath></defs>' + bak +
+      '<path d="' + kropp + '" fill="' + fyll + '" stroke="' + kant + '" stroke-width="2.2" stroke-linejoin="round"/>' +
+      '<g clip-path="url(#' + uid + 'k)">' + inni + '<ellipse cx="70" cy="74" rx="30" ry="26" fill="#000" opacity="0.13"/>' +
+      '<ellipse cx="36" cy="40" rx="9" ry="5" fill="#fff" opacity="0.35" transform="rotate(-30 36 40)"/></g>' + pynt;
+
+    // armer og bein på noen av dem
+    if (rnd() > 0.5 && frukt !== 'melon') {
+      var mork = '#3a2418';
+      [-1, 1].forEach(function (sd) {
+        s += '<path d="M' + P(a.x + sd * a.b * 1.05, a.y + a.b * 0.5) + 'Q' + P(a.x + sd * (a.b * 1.05 + 8), a.y + a.b * 0.5) + ' ' + P(a.x + sd * (a.b * 1.05 + 9), a.y + a.b * 0.2) +
+          '" fill="none" stroke="' + mork + '" stroke-width="2.2" stroke-linecap="round"/>' + sirkel(a.x + sd * (a.b * 1.05 + 9), a.y + a.b * 0.2, 2.6, '#fff');
+      });
+    }
+
+    var b = a.b, ey = a.y - b * 0.12;
+    [-1, 1].forEach(function (sd) {
+      var x = a.x + sd * b * 0.34;
+      s += '<g class="oye"><ellipse cx="' + tall(x) + '" cy="' + tall(ey) + '" rx="' + tall(b * 0.09) + '" ry="' + tall(b * 0.13) + '" fill="#2a1a18"/>' +
+        sirkel(x + b * 0.03, ey - b * 0.05, b * 0.035, '#fff') + '</g>';
+      s += '<ellipse cx="' + tall(a.x + sd * b * 0.58) + '" cy="' + tall(a.y + b * 0.12) + '" rx="' + tall(b * 0.12) + '" ry="' + tall(b * 0.07) +
+        '" fill="hsl(345 95% 70%)" opacity="0.6"/>';
+    });
+    var my = a.y + b * 0.22, munnStil = velg(rnd, ['smil', 'o', 'tunge']);
+    s += '<g class="munn">';
+    if (munnStil === 'o') {
+      s += '<ellipse cx="' + tall(a.x) + '" cy="' + tall(my + 1) + '" rx="' + tall(b * 0.08) + '" ry="' + tall(b * 0.1) + '" fill="#5a1a22"/>';
+    } else {
+      s += '<path d="M' + P(a.x - b * 0.18, my - 0.5) + 'Q' + P(a.x, my + b * 0.3) + ' ' + P(a.x + b * 0.18, my - 0.5) + 'Z" fill="#5a1a22"/>';
+      if (munnStil === 'tunge') s += '<ellipse cx="' + tall(a.x) + '" cy="' + tall(my + b * 0.13) + '" rx="' + tall(b * 0.08) + '" ry="' + tall(b * 0.05) + '" fill="#ff7aa0"/>';
+    }
+    return svg(s + '</g>');
+  }
+
+  /* ---------- akvarell ---------- */
+
+  /* Småkryp malt med vannfarger på papir: hver flate males to-tre ganger
+     litt forskjøvet og halvgjennomsiktig, så kantene blir mørkere der
+     lagene overlapper — slik vannfarge tørker. Oppå kommer en tynn
+     blekkstrek som ikke helt treffer fargen, som i en skisse. */
+  function tegnAkvarell(rnd, hue) {
+    var BLEKK = '#3b2f2a';
+    function klatt(cx, cy, rx, ry, n) {
+      var p = [];
+      for (var i = 0; i < (n || 9); i++) {
+        var a = i / (n || 9) * Math.PI * 2, j = 1 + (rnd() - 0.5) * 0.12;
+        p.push([cx + Math.cos(a) * rx * j, cy + Math.sin(a) * ry * j]);
+      }
+      return glattBane(p);
+    }
+    function vask(d, farg, lag) {
+      var t = '';
+      for (var i = 0; i < (lag || 3); i++) {
+        t += '<path d="' + d + '" fill="' + farg + '" opacity="0.42" transform="translate(' + tall((rnd() - 0.5) * 2.2) + ' ' + tall((rnd() - 0.5) * 2.2) + ')"/>';
+      }
+      return t + '<path d="' + d + '" fill="none" stroke="' + BLEKK + '" stroke-width="1.1" transform="translate(0.7 0.5)"/>';
+    }
+    function blekk(d, b) {
+      return '<path d="' + d + '" fill="none" stroke="' + BLEKK + '" stroke-width="' + (b || 1.2) + '" stroke-linecap="round"/>';
+    }
+    function blekkOye(x, y, r) {
+      return '<g class="oye">' + sirkel(x, y, r, '#fff') + '<circle cx="' + tall(x) + '" cy="' + tall(y) + '" r="' + tall(r) + '" fill="none" stroke="' + BLEKK +
+        '" stroke-width="0.9"/>' + sirkel(x + r * 0.15, y + r * 0.1, r * 0.55, BLEKK) + sirkel(x - r * 0.1, y - r * 0.2, r * 0.18, '#fff') + '</g>';
+    }
+    var s = '<rect x="6" y="6" width="88" height="88" rx="10" fill="#f5efe2" stroke="#d8cdb6" stroke-width="1"/>';
+    for (var i = 0; i < 18; i++) s += sirkel(mellomtall(rnd, 10, 90), mellomtall(rnd, 10, 90), 0.4 + rnd() * 0.5, '#e2d6bf');
+    var farg = farge(hue, 55, 70), farg2 = farge((hue + 40) % 360, 60, 70);
+    var kryp = velg(rnd, ['marihone', 'bie', 'snegle', 'sommerfugl', 'larve', 'frosk']);
+    var m = '', oy = '';
+
+    if (kryp === 'marihone') {
+      [-1, 1].forEach(function (sd) {
+        for (var k = 0; k < 3; k++) s += blekk('M' + P(50 + sd * 18, 56 + k * 9) + 'L' + P(50 + sd * 29, 60 + k * 10));
+        s += blekk('M' + P(50 + sd * 5, 30) + 'Q' + P(50 + sd * 9, 20) + ' ' + P(50 + sd * 15, 18)) + sirkel(50 + sd * 15, 18, 1.8, BLEKK);
+      });
+      s += vask(klatt(50, 64, 26, 23), 'hsl(355 85% 52%)');
+      s += blekk('M' + P(50, 44) + 'L' + P(50, 86));
+      [[38, 56], [62, 56], [36, 72], [64, 72], [46, 80], [56, 64]].forEach(function (p) { s += vask(klatt(p[0], p[1], 3.6, 3.4, 7), '#222', 2); });
+      s += vask(klatt(50, 38, 15, 10), '#2b2430');
+      oy = blekkOye(45, 37, 3.4) + blekkOye(55, 37, 3.4);
+      m = '<path d="M' + P(46.5, 42) + 'Q' + P(50, 45.5) + ' ' + P(53.5, 42) + 'Z" fill="hsl(350 80% 65%)"/>';
+    } else if (kryp === 'bie') {
+      [-1, 1].forEach(function (sd) { s += vask(klatt(50 + sd * 17, 42, 13, 9), 'hsl(200 70% 85%)', 2); });
+      s += vask(klatt(50, 66, 22, 19), 'hsl(46 95% 58%)');
+      [60, 70].forEach(function (y) { s += '<path d="M' + P(30, y) + 'Q' + P(50, y + 4) + ' ' + P(70, y) + '" fill="none" stroke="#2b2430" stroke-width="5" opacity="0.8"/>'; });
+      s += blekk('M' + P(50, 85) + 'L' + P(50, 91), 1.6);
+      [-1, 1].forEach(function (sd) {
+        s += blekk('M' + P(50 + sd * 5, 30) + 'Q' + P(50 + sd * 8, 20) + ' ' + P(50 + sd * 13, 17)) + sirkel(50 + sd * 13, 17, 1.6, BLEKK);
+      });
+      s += vask(klatt(50, 38, 13, 12), 'hsl(46 95% 62%)');
+      oy = blekkOye(45, 37, 3.6) + blekkOye(55, 37, 3.6);
+      m = '<path d="M' + P(46, 42.5) + 'Q' + P(50, 47) + ' ' + P(54, 42.5) + 'Z" fill="hsl(350 70% 45%)"/>';
+    } else if (kryp === 'snegle') {
+      s += vask('M' + P(14, 82) + 'Q' + P(16, 64) + ' ' + P(28, 64) + 'Q' + P(40, 66) + ' ' + P(48, 74) + 'L' + P(84, 76) + 'Q' + P(90, 80) + ' ' + P(84, 84) + 'Z', farg2);
+      [[21, 46], [30, 44]].forEach(function (p) { s += blekk('M' + P(p[0] + 1, 64) + 'L' + P(p[0], p[1] + 3), 1.4); oy += blekkOye(p[0], p[1], 3.2); });
+      s += vask(klatt(60, 54, 21, 20), farg);
+      var sp = 'M' + P(60, 54), v = 0, r = 1;
+      for (i = 0; i < 26; i++) { v += 0.5; r += 0.65; sp += 'L' + P(60 + Math.cos(v) * r, 54 + Math.sin(v) * r); }
+      s += blekk(sp, 1.1);
+      m = '<path d="M' + P(17, 72) + 'Q' + P(21, 75) + ' ' + P(25, 72) + 'Z" fill="hsl(350 70% 45%)"/>';
+    } else if (kryp === 'sommerfugl') {
+      [-1, 1].forEach(function (sd) {
+        s += vask(klatt(50 + sd * 20, 40, 17, 16), farg);
+        s += vask(klatt(50 + sd * 15, 68, 11, 12), farg2);
+        s += vask(klatt(50 + sd * 22, 38, 5, 5, 7), 'hsl(' + ((hue + 180) % 360) + ' 70% 60%)', 2);
+        s += blekk('M' + P(50 + sd * 3, 36) + 'Q' + P(50 + sd * 6, 22) + ' ' + P(50 + sd * 12, 16));
+      });
+      s += vask(klatt(50, 64, 4, 18), '#4a3a44');
+      s += vask(klatt(50, 42, 9, 9), '#4a3a44');
+      oy = blekkOye(46.5, 41, 2.6) + blekkOye(53.5, 41, 2.6);
+      m = '<path d="M' + P(47.5, 46) + 'Q' + P(50, 48.5) + ' ' + P(52.5, 46) + 'Z" fill="hsl(350 80% 70%)"/>';
+    } else if (kryp === 'larve') {
+      var ledd = [[20, 76, 9], [32, 72, 10], [45, 72, 10.5], [58, 70, 11]];
+      ledd.forEach(function (l, k) {
+        s += blekk('M' + P(l[0] - 3, l[1] + l[2] - 1) + 'L' + P(l[0] - 4, l[1] + l[2] + 4)) + blekk('M' + P(l[0] + 3, l[1] + l[2] - 1) + 'L' + P(l[0] + 4, l[1] + l[2] + 4));
+        s += vask(klatt(l[0], l[1], l[2], l[2]), k % 2 ? farg : farg2, 2);
+      });
+      [-1, 1].forEach(function (sd) {
+        s += blekk('M' + P(70 + sd * 5, 36) + 'Q' + P(70 + sd * 8, 24) + ' ' + P(70 + sd * 12, 22)) + sirkel(70 + sd * 12, 22, 1.8, farge((hue + 180) % 360, 60, 55));
+      });
+      s += vask(klatt(70, 50, 16, 15), farg);
+      oy = blekkOye(64, 47, 3.8) + blekkOye(76, 47, 3.8);
+      m = '<path d="M' + P(65, 55) + 'Q' + P(70, 60) + ' ' + P(75, 55) + 'Z" fill="hsl(350 70% 45%)"/>';
+    } else {
+      [-1, 1].forEach(function (sd) {
+        s += vask(klatt(50 + sd * 24, 82, 9, 5), farge(hue, 45, 60), 2);
+      });
+      s += vask(klatt(50, 64, 30, 21), farge(hue, 50, 60));
+      s += vask(klatt(50, 70, 17, 11), farge(hue, 80, 50), 2);
+      [-1, 1].forEach(function (sd) { s += vask(klatt(50 + sd * 13, 44, 9, 9), farge(hue, 50, 60), 2); });
+      oy = blekkOye(37, 43, 5.5) + blekkOye(63, 43, 5.5);
+      [-1, 1].forEach(function (sd) { s += '<ellipse cx="' + (50 + sd * 18) + '" cy="60" rx="4" ry="2.4" fill="hsl(350 90% 70%)" opacity="0.5"/>'; });
+      m = '<path d="M' + P(36, 58) + 'Q' + P(50, 67) + ' ' + P(64, 58) + 'Q' + P(50, 62) + ' ' + P(36, 58) + 'Z" fill="hsl(350 60% 40%)"/>';
+    }
+    return svg(s + oy + '<g class="munn">' + m + '</g>');
+  }
+
+  /* ---------- regnbue ---------- */
+
+  /* Eventyrvesener i pastell: enhjørninger med regnbuemanke, feer,
+     skyer med regnbue under, stjerner og kaniner — med glitter rundt.
+     Myke konturer i en mørkere pastell, ikke svart strek. */
+  var REGNBUE = ['hsl(355 90% 72%)', 'hsl(30 95% 70%)', 'hsl(52 95% 68%)', 'hsl(130 60% 70%)', 'hsl(200 80% 72%)', 'hsl(270 70% 78%)'];
+
+  function glimt(x, y, r, farg) {
+    return '<path d="M' + P(x, y - r) + 'Q' + P(x, y) + ' ' + P(x + r, y) + 'Q' + P(x, y) + ' ' + P(x, y + r) + 'Q' + P(x, y) + ' ' +
+      P(x - r, y) + 'Q' + P(x, y) + ' ' + P(x, y - r) + 'Z" fill="' + farg + '"/>';
+  }
+
+  function tegnRegnbue(rnd, hue, f, uid) {
+    var pastell = farge(hue, 90, 70), kant = farge(hue, 60, 45), rosa = 'hsl(340 90% 85%)';
+    function form(d, fyll, b) {
+      return '<path d="' + d + '" fill="' + fyll + '" stroke="' + kant + '" stroke-width="' + (b || 1.8) + '" stroke-linejoin="round"/>';
+    }
+    var s = '<defs><radialGradient id="' + uid + 'r" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="' + farge(hue, 85, 80) +
+      '" stop-opacity="0.5"/><stop offset="1" stop-color="' + farge(hue, 85, 80) + '" stop-opacity="0"/></radialGradient></defs>' +
+      '<circle cx="50" cy="52" r="46" fill="url(#' + uid + 'r)"/>';
+    var hvem = velg(rnd, ['enhjorning', 'enhjorning', 'fe', 'sky', 'stjerne', 'kanin']);
+    var oyeY = 50, oyeX = 7, oyeR = 4.2, munnY = 60, kinnY = 57;
+
+    if (hvem === 'sky' || rnd() > 0.6) {
+      // regnbuen bak
+      REGNBUE.forEach(function (c, i) {
+        var r = 40 - i * 3.2;
+        s += '<path d="M' + P(50 - r, 78) + 'A' + tall(r) + ' ' + tall(r) + ' 0 0 1 ' + P(50 + r, 78) + '" fill="none" stroke="' + c + '" stroke-width="3.3"/>';
+      });
+    }
+
+    if (hvem === 'enhjorning') {
+      var manke = rnd() > 0.5 ? 1 : -1;
+      s += form(ellD(50, 82, 17, 10), pastell);
+      [-1, 1].forEach(function (sd) { s += form(ellD(50 + sd * 9, 90, 4.5, 3.2), farge(hue, 75, 70)); });
+      REGNBUE.forEach(function (c, i) {
+        s += '<ellipse cx="' + tall(50 + manke * (17 + i * 1.2)) + '" cy="' + tall(30 + i * 7.5) + '" rx="7" ry="6" fill="' + c + '" stroke="' + kant + '" stroke-width="1.2"/>';
+      });
+      [-1, 1].forEach(function (sd) {
+        s += form(mangekant([[50 + sd * 9, 34], [50 + sd * 17, 18], [50 + sd * 18, 36]]), pastell);
+        s += '<path d="' + mangekant([[50 + sd * 11, 32], [50 + sd * 16, 22], [50 + sd * 16.5, 33]]) + '" fill="' + rosa + '"/>';
+      });
+      s += form('M' + P(45, 30) + 'L' + P(50, 5) + 'L' + P(55, 30) + 'Z', 'hsl(45 95% 70%)', 1.6);
+      for (var k = 1; k <= 3; k++) s += '<path d="M' + P(46 + k * 0.6, 29 - k * 6) + 'L' + P(54 - k * 0.6, 26 - k * 6) + '" stroke="hsl(40 80% 50%)" stroke-width="1"/>';
+      s += form(ellD(50, 46, 20, 17), pastell);
+      REGNBUE.slice(0, 3).forEach(function (c, i) {
+        s += '<ellipse cx="' + tall(50 + manke * (4 - i * 4)) + '" cy="' + tall(30 + i * 1.5) + '" rx="6" ry="5" fill="' + c + '" stroke="' + kant + '" stroke-width="1.2"/>';
+      });
+      s += form(ellD(50, 56, 11, 7.5), rosa, 1.4);
+      s += sirkel(46.5, 55, 1, kant) + sirkel(53.5, 55, 1, kant);
+      oyeY = 45; oyeX = 8; munnY = 60; kinnY = 51;
+    } else if (hvem === 'fe') {
+      [-1, 1].forEach(function (sd) {
+        s += '<ellipse cx="' + (50 + sd * 17) + '" cy="44" rx="14" ry="10" transform="rotate(' + (sd * -25) + ' ' + (50 + sd * 17) + ' 44)" fill="' + farge((hue + 60) % 360, 90, 85) + '" opacity="0.7" stroke="#fff" stroke-width="1.2"/>';
+        s += '<ellipse cx="' + (50 + sd * 14) + '" cy="62" rx="9" ry="7" transform="rotate(' + (sd * 25) + ' ' + (50 + sd * 14) + ' 62)" fill="' + farge((hue + 60) % 360, 90, 85) + '" opacity="0.7" stroke="#fff" stroke-width="1.2"/>';
+      });
+      s += form('M' + P(50, 58) + 'L' + P(66, 90) + 'Q' + P(50, 94) + ' ' + P(34, 90) + 'Z', pastell);
+      s += '<path d="M' + P(64, 64) + 'L' + P(76, 44) + '" stroke="hsl(45 80% 45%)" stroke-width="1.6"/>' + glimt(77, 42, 5.5, 'hsl(48 100% 65%)');
+      s += form(ellD(50, 42, 14, 14.5), 'hsl(25 85% 88%)');
+      s += form('M' + P(36, 44) + 'Q' + P(34, 24) + ' ' + P(50, 26) + 'Q' + P(66, 24) + ' ' + P(64, 44) + 'Q' + P(58, 32) + ' ' + P(50, 33) + 'Q' + P(42, 32) + ' ' + P(36, 44) + 'Z', farge(hue, 65, 60));
+      oyeY = 43; oyeX = 5.5; oyeR = 3.4; munnY = 50; kinnY = 48;
+    } else if (hvem === 'sky') {
+      var sky = [[36, 58, 13], [50, 50, 16], [64, 58, 13], [50, 62, 14], [28, 64, 9], [72, 64, 9]];
+      sky.forEach(function (b) { s += '<circle cx="' + b[0] + '" cy="' + b[1] + '" r="' + (b[2] + 1.8) + '" fill="' + kant + '"/>'; });
+      sky.forEach(function (b) { s += sirkel(b[0], b[1], b[2], farge(hue, 96, 60)); });
+      [36, 50, 64].forEach(function (x, i) { s += '<path d="M' + P(x, 80 + i % 2 * 3) + 'q-2 4 0 6q2 -2 0 -6Z" fill="hsl(200 80% 72%)"/>'; });
+      oyeY = 55; munnY = 64; kinnY = 61;
+    } else if (hvem === 'stjerne') {
+      s += form(hjorneBane(stjerneform(50, 54, 38, 18, 5, function () { return 0.5; }), 0.22), 'hsl(48 100% 75%)', 2);
+      oyeY = 52; munnY = 61; kinnY = 58;
+    } else {
+      [-1, 1].forEach(function (sd) {
+        s += form(ellD(50 + sd * 8, 22, 5.5, 15), pastell);
+        s += '<ellipse cx="' + (50 + sd * 8) + '" cy="23" rx="2.6" ry="10" fill="' + rosa + '"/>';
+      });
+      s += form(ellD(50, 78, 16, 13), pastell);
+      s += form(ellD(50, 50, 19, 17), pastell);
+      s += glimt(50, 38, 4, 'hsl(48 100% 65%)');
+      s += '<path d="M' + P(48, 55) + 'L' + P(52, 55) + 'L' + P(50, 57.5) + 'Z" fill="hsl(340 80% 65%)"/>';
+      oyeY = 49; munnY = 60; kinnY = 56;
+    }
+
+    // glitter rundt
+    for (var g = 0; g < 6; g++) {
+      var ga = rnd() * Math.PI * 2, gr = mellomtall(rnd, 36, 43);
+      s += glimt(50 + Math.cos(ga) * gr, 52 + Math.sin(ga) * gr, 2 + rnd() * 2.5, rnd() > 0.5 ? '#fff' : 'hsl(48 100% 70%)');
+    }
+    // store glitrende øyne med vipper
+    [-1, 1].forEach(function (sd) {
+      var x = 50 + sd * oyeX;
+      s += '<g class="oye"><ellipse cx="' + tall(x) + '" cy="' + tall(oyeY) + '" rx="' + tall(oyeR * 0.82) + '" ry="' + tall(oyeR) + '" fill="#3a2050"/>' +
+        sirkel(x + oyeR * 0.25, oyeY - oyeR * 0.35, oyeR * 0.35, '#fff') + sirkel(x - oyeR * 0.3, oyeY + oyeR * 0.4, oyeR * 0.15, '#fff') +
+        '<path d="M' + P(x + sd * oyeR * 0.6, oyeY - oyeR * 0.7) + 'l' + P(sd * 2.2, -1.8) + 'M' + P(x + sd * oyeR * 0.85, oyeY - oyeR * 0.2) + 'l' + P(sd * 2.4, -0.6) +
+        '" stroke="#3a2050" stroke-width="1" stroke-linecap="round"/></g>';
+      s += '<ellipse cx="' + tall(50 + sd * (oyeX + 5)) + '" cy="' + tall(kinnY) + '" rx="3" ry="1.8" fill="hsl(340 95% 75%)" opacity="0.7"/>';
+    });
+    s += '<g class="munn"><path d="M' + P(47, munnY - 0.5) + 'Q' + P(50, munnY + 4) + ' ' + P(53, munnY - 0.5) + 'Z" fill="hsl(340 60% 45%)"/></g>';
+    return svg(s);
+  }
+
   var STILER = {
     drage: tegnDrage, pirat: tegnPirat, metall: tegnMetall,
-    godteri: tegnGodteri, dino: tegnDino, origami: tegnOrigami
+    godteri: tegnGodteri, dino: tegnDino, origami: tegnOrigami,
+    tegneserie: tegnTegneserie, glassmaleri: tegnGlassmaleri, stjernebilde: tegnStjernebilde,
+    frukt: tegnFrukt, akvarell: tegnAkvarell, regnbue: tegnRegnbue
   };
 
   /* ---------- selve monsteret ---------- */

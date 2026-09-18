@@ -27,9 +27,10 @@ endres fritt uten at trommene låter strukket, og derfor den virker offline med
 kjører nøyaktig samme kode i en `OfflineAudioContext`, så det barna hører er
 det de får i fila.
 
-**Tolv beats, og hver er en hel verden.** BOOM BAP, ROMBASE, JUNGEL, HAVDYP,
-PIXEL, SPØKELSE, DRAGER, FABRIKK, GODTELAND, DINO, VINTER og PIRAT har hver
-sine egne monstre, egne syntetiserte lyder, egen
+**Atten beats i tre rader, og hver er en hel verden.** BOOM BAP, ROMBASE,
+JUNGEL, HAVDYP, PIXEL, SPØKELSE, DRAGER, FABRIKK, GODTELAND, DINO, VINTER,
+PIRAT, SUPERHELT, BORG, GALAKSE, FRUKTFEST, HAGEN og EVENTYR har hver sine
+egne monstre, egne syntetiserte lyder, egen
 toneart og eget tempo — ikke samme trommer i nytt mønster. Å bytte beat
 bytter monstrene, lydene, tempoet og fargene på himmelen på én gang, så det
 føles som å gå inn i et annet rom. Barnas egne lyder blir stående og spiller
@@ -58,7 +59,11 @@ tegner i ruter som et gammelt tv-spill, og i andre rad har nesten hver verden
 sin egen måte å tegne på (`STILER` i `monsters.js`): klistremerker med hvit
 kant for drager og pirater, blankt metall med fargeforløp for robotene,
 glinsende 3D-godteri, hulemalerier av dinosaurer på en steinflis, og origami
-for vinterdyrene der hver flate brettes i trekanter med egen lysstyrke. Hver
+for vinterdyrene der hver flate brettes i trekanter med egen lysstyrke. Tredje
+rad har tegneserie med rasterprikker for superheltene, glassmaleri for
+borgen, stjernebilder for galaksen, frukt med ansikt for fruktfesten,
+akvarell for småkrypene i hagen, og pastell med regnbuer og glitter for
+eventyret. Hver
 stil er sin egen lille tegner, men alle legger øynene i `oye`-grupper og
 munnen i en `munn`-gruppe, så de blunker og synger som alle andre monstre.
 Fargeforløp og klipping trenger id-er som er unike på siden; hver tegning får
@@ -176,14 +181,17 @@ som er garantert *inne i* silhuetten — mønster og ansikt plasseres etter den,
 og for former som bobler eller pigger er ytterkanten delvis tom luft. Legg den
 aldri i `FORMER`: det ville endret utseendet på alle barnas eksisterende lyder.
 
-Tegneflaten er `0 0 100 100` og klipper alt utenfor. Alt som stikker opp må
+Tegneflaten er `0 0 100 100` og klipper alt utenfor. (`getBBox` regner ikke med
+`clip-path`, så glassmaleriets ruter bak buen slår ut i sjekken under uten å
+synes.) Alt som stikker opp må
 respektere taket `HIMMEL`. Slik sjekker du at ingenting blir klippet:
 
 ```js
 const d = document.createElement('div');
 document.body.appendChild(d);
 for (const tema of ['rom', 'jungel', 'hav', 'pixel', 'gross', 'drage', 'pirat',
-                    'metall', 'godteri', 'dino', 'origami', null]) {
+                    'metall', 'godteri', 'dino', 'origami', 'tegneserie',
+                    'glassmaleri', 'stjernebilde', 'frukt', 'akvarell', 'regnbue', null]) {
   for (let i = 0; i < 400; i++) {
     d.innerHTML = Monstre.tegn('t' + i, Monstre.nyHue(i), tema ? { tema } : null);
     const b = d.querySelector('svg').getBBox();

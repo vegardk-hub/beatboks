@@ -1,6 +1,6 @@
 /* Service worker: gjør appen tilgjengelig uten nett, og sørger for at en ny
    utgave faktisk når fram til nettbrettet. */
-const CACHE = 'beatboks-v12';
+const CACHE = 'beatboks-v13';
 const FILES = ['./', './index.html', './styles.css', './audio.js', './monsters.js',
   './record.js', './analyse.js', './navn.js', './visual.js', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png'];
