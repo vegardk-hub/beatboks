@@ -1403,6 +1403,33 @@ var Motor = (function () {
     });
   }
 
+  /* ---------- VETLE: sangen til Vetle ---------- */
+
+  /* Akkordteppe som «pumper»: det dukker ned på hvert slag og sveller opp
+     igjen mot neste — slik bass og akkorder gjør i moderne dansepop når
+     kicken skyver dem unna. Hver akkord i sporet varer to slag. */
+  function pumpepad(c, t, ut, v, hz, lengde) {
+    var akkord = Array.isArray(hz) ? hz : [hz];
+    var slag = lengde / 2, topp = v * 0.065, g = c.createGain(), f = c.createBiquadFilter();
+    g.gain.setValueAtTime(0.0001, t);
+    for (var k = 0; k < 2; k++) {
+      var tb = t + k * slag;
+      g.gain.setValueAtTime(topp * 0.12, tb);
+      g.gain.linearRampToValueAtTime(topp, tb + slag * 0.8);
+    }
+    g.gain.setValueAtTime(topp, t + lengde - 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + lengde + 0.05);
+    f.type = 'lowpass'; f.frequency.value = 2200;
+    f.connect(g); g.connect(ut);
+    akkord.forEach(function (n) {
+      [0.993, 1, 1.007].forEach(function (k2) {
+        var o = c.createOscillator();
+        o.type = 'sawtooth'; o.frequency.value = n * k2;
+        o.connect(f); o.start(t); o.stop(t + lengde + 0.08);
+      });
+    });
+  }
+
   /* ---------- tonene ---------- */
 
   /* Tonene skrives som notenavn (A1, C#4, Bb3), og akkorder med pluss mellom
@@ -1771,6 +1798,34 @@ var Motor = (function () {
         { id: 'panfloyte', navn: 'PANFLØYTE', hue: 160, slag: panfloyte, tonal: true, lengde: 'legato', maksSteg: 8,
           spor: 'G5 . . . F5 . Eb5 . . . . . Bb4 . . .   C5 . . . Eb5 . F5 . . . . . G5 . . .' },
         { id: 'regnbue', navn: 'REGNBUE', hue: 340, slag: regnbue, spor: '..............x. ................' }
+      ]
+    },
+
+    /* ---------- fjerde rad ---------- */
+    {
+      /* Laget etter Vetles egen sang (Vetlesang/Vetle.wav, som ikke ligger i
+         repoet). Målt fra lydfila: 127 slag i minuttet, G-moll, kick på hvert
+         slag, klapp på to og fire og hi-hat mellom slagene. Bassen går i en
+         runde over to takter — G, Ess, C, D — og både bass og akkorder
+         pumper mot kicken. Melodien er motivet som kommer igjen i refrenget:
+         B-B-D-D, A-A, G. */
+      id: 'vetle', navn: 'VETLE', emoji: '🎤', bpm: 127, hue: 45, tema: null,
+      himmel: { sky1: 45, sky2: 320, horisont: 50, gitter: 300, vegg: 45 },
+      lyder: [
+        { id: 'vdunk', navn: 'DUNK', hue: 45, slag: supernova, start: true, spor: 'x...x...x...x...' },
+        { id: 'vklapp', navn: 'KLAPP', hue: 330, slag: function (c, t, ut, v, x) { klapp(c, t, ut, v * 1.7, x); }, start: true, spor: '....x.......x...' },
+        { id: 'vtsj', navn: 'TSJ', hue: 190, slag: stjerne, start: true, spor: '..x...x...x...x.' },
+        { id: 'vtikk', navn: 'TIKK', hue: 170, slag: hatt, spor: 'xoxoxoxoxoxoxoxo' },
+        { id: 'vbass', navn: 'BASS', hue: 270, slag: function (c, t, ut, v, hz, l) { sorthull(c, t, ut, v * 0.72, hz, l); }, tonal: true, lengde: 1.5,
+          spor: '. . G1 . . . G1 . . . Eb1 . . . Eb1 .   . . C2 . . . C2 . . . D2 . . . D2 .' },
+        { id: 'vakkord', navn: 'AKKORDER', hue: 300, slag: pumpepad, tonal: true, lengde: 'legato', maksSteg: 8,
+          spor: 'G3+Bb3+D4 . . . . . . . Eb3+G3+Bb3 . . . . . . .   C3+Eb3+G3 . . . . . . . D3+F#3+A3 . . . . . . .' },
+        /* melodien er det som gjør sangen gjenkjennelig, så den ligger høyere
+           her enn samme lyd gjør i GALAKSE */
+        { id: 'vmelodi', navn: 'MELODI', hue: 150, slag: function (c, t, ut, v, hz) { planet(c, t, ut, v * 1.9, hz); }, tonal: true,
+          spor: '. Bb4 Bb4 . D5 . D5 . . A4 A4 . . A4 G4 .   . Bb4 Bb4 . C5 . D5 . . A4 A4 . . Bb4 A4 .' },
+        { id: 'vcrash', navn: 'CRASH', hue: 55, slag: function (c, t, ut) { cymbal(c, t, ut); },
+          spor: 'x............... ................' }
       ]
     }
   ];

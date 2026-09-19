@@ -38,6 +38,12 @@ videre oppå den nye beaten: det er barnets band, beaten er scenen. Hver
 verden husker hvilke av sine monstre som sto på sist (`S.trommer`), så det
 går an å hoppe fram og tilbake.
 
+**VETLE er laget etter Vetles egen sang.** Lydfila (`Vetlesang/Vetle.wav`) ligger
+ikke i repoet, men ble målt: 127 slag i minuttet, G-moll, kick på hvert slag,
+klapp på to og fire, hi-hat mellom slagene, og en bass som går G – Ess – C – D
+over to takter. Både bass og akkorder «pumper» mot kicken, og det gjør
+`pumpepad` også. Melodien er motivet som går igjen i refrenget.
+
 **Hver verden har sin toneart, og alt i den passer sammen.** Innenfor én beat
 er alle tonene valgt slik at en seksåring kan skru på alle monstrene samtidig
 uten at det skjærer: A-moll pentaton i BOOM BAP, E-moll i ROMBASE, C-dur i
