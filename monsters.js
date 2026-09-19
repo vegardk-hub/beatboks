@@ -2494,7 +2494,7 @@ var Monstre = (function () {
   }
 
   /* Alle stilene et monster kan tegnes i: null er den opprinnelige
-     neonstilen, resten er verdenene. Barnas nye lyder trekker fra denne. */
+     neonstilen, resten er verdenene. Brukes til å teste at alle stilene tegner riktig. */
   var ALLE_STILER = [null, 'pixel'].concat(Object.keys(TEMA), Object.keys(STILER));
 
   return { tegn: tegn, nyHue: nyHue, STILER: ALLE_STILER };

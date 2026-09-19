@@ -69,11 +69,12 @@ munnen i en `munn`-gruppe, så de blunker og synger som alle andre monstre.
 Fargeforløp og klipping trenger id-er som er unike på siden; hver tegning får
 et prefiks laget av nøkkelen.
 
-**Barnas nye lyder henter figuren fra alle verdenene.** Hver ny lyd trekker en
-tilfeldig stil — neon, piksel, robot, drage, godteri, hulemaleri, origami … —
-og stilen lagres på lyden (`tema` i `S.stemmer`), så figuren ser lik ut i
-morgen. To lyder på rad får aldri samme stil. Liker ikke barnet figuren,
-trykker de på den på opptaksskjermen og får en ny. Lyder laget før dette har
+**Barnas nye lyder får figur i stilen til beaten de står i.** Tar de opp i
+PIXEL, blir lyden et pikselmonster, i DRAGER en drage, i BOOM BAP en
+neonfigur. Da passer den inn blant monstrene den skal spille med. Stilen
+lagres på lyden (`tema` i `S.stemmer`), så figuren ser lik ut i morgen og i
+andre beats. Liker ikke barnet figuren, trykker de på den på
+opptaksskjermen og får en ny i samme stil, med annen form og farge. Lyder laget før dette har
 ingen stil lagret og tegnes nøyaktig som før.
 
 Monstre uten tema — barnas egne lyder og BOOM

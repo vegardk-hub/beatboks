@@ -3,7 +3,7 @@
    Bumpes for hånd ved hver endring som pushes, sammen med CACHE i sw.js.
    Vises nederst i appen, så det er lett å se om nettbrettet faktisk har hentet
    siste versjon. */
-var VERSJON = 'v14';
+var VERSJON = 'v15';
 var NOKKEL = 'beatboks-v1';
 var MAKS_STEMMER = 200;
 var VIS_FORST = 23;             // med TA OPP blir det fire hele rader på et nettbrett
@@ -186,21 +186,14 @@ function svgFor(p) {
   return svgLager[lager];
 }
 
-/* Nye lyder får en figur fra en tilfeldig verden — robot, drage, godteri,
-   hulemaleri … — i stedet for alltid den samme neonstilen. Stilen lagres på
-   lyden, så figuren ser lik ut i morgen. Lyder laget før dette har ingen stil
-   lagret og tegnes som før: barna kjenner dem igjen på figuren.
-
-   To lyder på rad får aldri samme stil, ellers ser en ny lyd ut som en kopi
-   av den forrige. */
-function nyStil(unnta) {
-  var valg = Monstre.STILER.filter(function (st) { return st !== unnta; });
-  return valg[Math.floor(Math.random() * valg.length)];
-}
-
-function sisteStil() {
-  var siste = S.stemmer[S.stemmer.length - 1];
-  return siste ? (siste.tema || null) : undefined;
+/* En ny lyd får figur i samme stil som beaten barnet står i: tar de opp i
+   PIXEL, blir den et pikselmonster, i DRAGER en drage, i BOOM BAP en
+   neonfigur. Da passer den nye lyden inn blant monstrene den skal spille
+   med. Stilen lagres på lyden, så figuren ser lik ut i morgen og i andre
+   beats. Lyder laget før stilene fantes, har ingen stil lagret og tegnes som
+   før: barna kjenner dem igjen på figuren. */
+function stilNaa() {
+  return Motor.grunnbeat.tema || null;
 }
 
 /* Taktlysene går gjennom hele neonskalaen appen ellers bruker: magenta på
@@ -399,8 +392,8 @@ function tegnOpptak() {
   } else if (ui.opptak === 'lytt') {
     var p = ui.nyLyd;
     h += '<div class="lytt">' +
-      /* Figuren er en knapp: liker ikke barnet den, trykker de og får en ny —
-         fra en annen verden og i en annen farge. */
+      /* Figuren er en knapp: liker ikke barnet den, trykker de og får en ny
+         — i samme stil som beaten, men en annen figur i en annen farge. */
       '<div class="nyttMonster" data-h="nyFigur" role="button" tabindex="0" style="--hue:' + p.hue + '">' +
       svgFor({ id: p.id, kind: 'stemme', hue: p.hue, tema: p.tema }) + '</div>' +
       '<div class="nyFigurHint">🎲 Trykk på figuren for en ny</div>' +
@@ -652,7 +645,7 @@ function stoppOpptak() {
        feltet, så barnet kan beholde det eller skrive noe eget. */
     navn: Navn.lag(buf, S.stemmer.map(function (st) { return st.navn; })),
     hue: Monstre.nyHue(S.teller),
-    tema: nyStil(sisteStil()),
+    tema: stilNaa(),
     effekt: 'ren',
     /* Et langt opptak er en frase og skal gå én gang per runde; et kort er et
        slag og skal gjenta seg. Å gjette riktig her sparer barnet for et valg
@@ -668,7 +661,6 @@ function stoppOpptak() {
 function nyFigur() {
   var p = ui.nyLyd;
   if (!p) return;
-  p.tema = nyStil(p.tema);
   p.hue = Math.floor(Math.random() * 360);
   var el = document.querySelector('.nyttMonster');
   if (!el) return;
